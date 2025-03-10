@@ -1,14 +1,15 @@
 // src/components/layout/Layout.tsx
+import { Container } from 'react-bootstrap';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 
 const Layout = () => {
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="d-flex flex-column min-vh-100">
       <Navbar />
-      <main className="flex-grow overflow-auto p-4">
+      <Container className="flex-grow-1 py-4">
         <Outlet />
-      </main>
+      </Container>
     </div>
   );
 };

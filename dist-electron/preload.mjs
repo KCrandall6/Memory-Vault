@@ -1,1 +1,28 @@
-"use strict";const s=require("electron");s.contextBridge.exposeInMainWorld("ipcRenderer",{on(...e){const[r,n]=e;return s.ipcRenderer.on(r,(i,...o)=>n(i,...o))},off(...e){const[r,...n]=e;return s.ipcRenderer.off(r,...n)},send(...e){const[r,...n]=e;return s.ipcRenderer.send(r,...n)},invoke(...e){const[r,...n]=e;return s.ipcRenderer.invoke(r,...n)},database:{getAllMedia:()=>s.ipcRenderer.invoke("get-all-media")},sendMessage:e=>s.ipcRenderer.send("message",e),onMessage:e=>s.ipcRenderer.on("main-process-message",(r,...n)=>e(...n))});
+"use strict";
+const electron = require("electron");
+electron.contextBridge.exposeInMainWorld("ipcRenderer", {
+  on(...args) {
+    const [channel, listener] = args;
+    return electron.ipcRenderer.on(channel, (event, ...args2) => listener(event, ...args2));
+  },
+  off(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.off(channel, ...omit);
+  },
+  send(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.send(channel, ...omit);
+  },
+  invoke(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.invoke(channel, ...omit);
+  },
+  database: {
+    getAllMedia: () => electron.ipcRenderer.invoke("get-all-media")
+    // Add more methods as needed
+  },
+  sendMessage: (message) => electron.ipcRenderer.send("message", message),
+  onMessage: (callback) => electron.ipcRenderer.on("main-process-message", (_event, ...args) => callback(...args))
+  // You can expose other APTs you need here.
+  // ...
+});

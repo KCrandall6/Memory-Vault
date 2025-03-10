@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import MediaPage from './pages/MediaPage';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   return (
