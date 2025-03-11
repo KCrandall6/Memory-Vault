@@ -1,0 +1,49 @@
+/* Import Montecatini Pro font if you have it */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap'); /* Fallback font */
+
+.title-font {
+  font-family: "Montecatini Pro", Montserrat, "Helvetica Neue", sans-serif;
+  color: #1E3A5F;
+}
+
+/* Carousel styling */
+.featured-carousel .carousel-placeholder {
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Card styling for equal heights */
+.action-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%;
+  border: none;
+}
+
+.action-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+/* Custom button styles */
+.btn-primary {
+  background-color: #1E3A5F !important;
+  border-color: #1E3A5F !important;
+}
+
+.btn-warning {
+  background-color: #FFB800 !important;
+  border-color: #FFB800 !important;
+}
+
+/* Navbar styling */
+.navbar-dark {
+  background-color: #1E3A5F !important;
+}
+
+.navbar-brand {
+  font-family: "Montecatini Pro", Montserrat, "Helvetica Neue", sans-serif;
+  font-weight: bold;
+}

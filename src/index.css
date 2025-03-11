@@ -36,6 +36,36 @@ h1 {
   line-height: 1.1;
 }
 
+/* Brand elements - Logo, navbar brand, page titles */
+.brand-font {
+  font-family: "montecatini-pro-normale", serif;
+  font-weight: 700;
+}
+
+/* Main headings */
+h1, h2 {
+  font-family: "acumin-pro", sans-serif;
+  font-weight: 600;
+}
+
+/* Subheadings */
+h3, h4, h5, h6 {
+  font-family: "acumin-pro", sans-serif;
+  font-weight: 500;
+}
+
+/* Body text */
+body, p, input, textarea, button {
+  font-family: "proxima-nova", sans-serif;
+  font-weight: 400;
+}
+
+/* Button text */
+.btn {
+  font-family: "proxima-nova", sans-serif;
+  font-weight: 600;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;

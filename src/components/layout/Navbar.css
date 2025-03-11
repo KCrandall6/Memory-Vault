@@ -1,0 +1,11 @@
+/* components/layout/Navbar.css */
+.navbar {
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  .navbar-brand {
+    font-family: "montecatini-pro-normale", serif !important;
+    font-weight: 700 !important;
+  }
