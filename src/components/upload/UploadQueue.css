@@ -1,0 +1,15 @@
+/* src/components/upload/UploadQueue.css */
+.upload-queue .active-item {
+  background-color: #4A6FA5 !important; /* Lighter blue */
+  color: white !important;
+  border-color: #4A6FA5 !important;
+}
+
+.upload-queue .list-group-item:hover:not(.active-item) {
+  background-color: #f8f9fa;
+}
+
+.upload-queue .badge {
+  background-color: #E9ECEF;
+  color: #1E3A5F;
+}

@@ -20,6 +20,7 @@ const Navbar = () => {
           <BootstrapNavbar.Toggle aria-controls="basic-navbar-nav" />
           <BootstrapNavbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto">
+              <Nav.Link as={Link} to="/">Home</Nav.Link>
               <Nav.Link as={Link} to="/upload">Upload</Nav.Link>
               <Nav.Link as={Link} to="/search">Search</Nav.Link>
               <NavDropdown title="More" id="basic-nav-dropdown">

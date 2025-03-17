@@ -6,6 +6,7 @@ import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import MediaPage from './pages/MediaPage';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 function App() {
   return (

@@ -25,10 +25,11 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
+  min-width: 100vw; /* Changed from 320px */
   min-height: 100vh;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  display: block; /* Changed from flex */
 }
 
 h1 {
@@ -38,8 +39,10 @@ h1 {
 
 /* Brand elements - Logo, navbar brand, page titles */
 .brand-font {
-  font-family: "montecatini-pro-normale", serif;
-  font-weight: 700;
+  font-family: "brandon-grotesque", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 1.5rem;
 }
 
 /* Main headings */

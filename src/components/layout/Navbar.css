@@ -1,11 +1,11 @@
-/* components/layout/Navbar.css */
-.navbar {
-    width: 100% !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-  
-  .navbar-brand {
-    font-family: "montecatini-pro-normale", serif !important;
-    font-weight: 700 !important;
-  }
+/* Navbar.css */
+.navbar-dark {
+  width: 100% !important;
+  background-color: #1E3A5F !important; /* Your vault blue color */
+}
+
+.navbar-brand {
+  font-family: "acumin-pro", sans-serif !important; /* Change this to your preferred font */
+  font-weight: 600 !important;
+  color: white !important;
+}
