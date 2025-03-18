@@ -1,56 +1,47 @@
 // src/components/upload/FileSelector.tsx
-
 import { Button, Card } from 'react-bootstrap';
 
 interface FileSelectorProps {
-  onFilesSelected: (files: File[]) => void;
+  onFilesSelected: (files: any[]) => void;
   hasFiles: boolean;
 }
 
 const FileSelector = ({ onFilesSelected, hasFiles }: FileSelectorProps) => {
   const handleSelectFiles = async () => {
     try {
-      // Use Electron's file dialog instead of browser input
-      const fileInfos = await window.electronAPI.selectFiles();
+      console.log('Selecting files...');
       
-      if (fileInfos && fileInfos.length > 0) {
-        // Convert file info to File objects
-        // Note: This is a simplified approach. In a real implementation,
-        // you might need to handle the file differently since you can't create
-        // actual File objects from paths in the renderer process
-        const files = fileInfos.map((fileInfo) => {
-          // Create a pseudo File object with necessary properties
-          return {
-            name: fileInfo.name,
-            path: fileInfo.path,
-            size: fileInfo.size,
-            type: getFileType(fileInfo.type),
-            lastModified: fileInfo.lastModified
-          };
-        });
+      // Use Electron API if available
+      if (window.electronAPI?.selectFiles) {
+        const fileInfos = await window.electronAPI.selectFiles();
+        console.log('Files selected from Electron:', fileInfos);
         
-        onFilesSelected(files);
+        if (fileInfos && fileInfos.length > 0) {
+          onFilesSelected(fileInfos);
+        }
+      } else {
+        // Fallback to browser file input
+        console.log('Electron API not available, using browser file input');
+        
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true;
+        input.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx';
+        
+        input.onchange = (e) => {
+          const target = e.target as HTMLInputElement;
+          if (target.files) {
+            const files = Array.from(target.files);
+            onFilesSelected(files);
+          }
+        };
+        
+        input.click();
       }
     } catch (error) {
       console.error('Error selecting files:', error);
       alert('Error selecting files. Please try again.');
     }
-  };
-  
-  // Helper function to guess mime type from extension
-  const getFileType = (ext) => {
-    const extMap = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.pdf': 'application/pdf',
-      '.doc': 'application/msword',
-      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      '.mp4': 'video/mp4'
-    };
-    
-    return extMap[ext.toLowerCase()] || 'application/octet-stream';
   };
 
   return (

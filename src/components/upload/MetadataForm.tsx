@@ -23,9 +23,19 @@ interface MetadataFormProps {
   mediaTypes: any[];
   sourceTypes: any[];
   collections: any[];
+  existingTags?: any[];
+  existingPeople?: any[];
 }
 
-const MetadataForm = ({ file, onSave, mediaTypes, sourceTypes, collections }: MetadataFormProps) => {
+const MetadataForm = ({ 
+    file, 
+    onSave, 
+    mediaTypes, 
+    sourceTypes, 
+    collections,
+    existingTags = [],
+    existingPeople = []
+  }: MetadataFormProps) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -42,23 +52,6 @@ const MetadataForm = ({ file, onSave, mediaTypes, sourceTypes, collections }: Me
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [selectedPeople, setSelectedPeople] = useState<Person[]>([]);
   const [filteredCollections, setFilteredCollections] = useState<Collection[]>([]);
-  
-  // Dummy data for existing tags and people - in a real app, this would come from the database
-  const [existingTags] = useState<Tag[]>([
-    { id: 1, name: 'family' },
-    { id: 2, name: 'vacation' },
-    { id: 3, name: 'birthday' },
-    { id: 4, name: 'wedding' },
-    { id: 5, name: 'holiday' },
-  ]);
-  
-  const [existingPeople] = useState<Person[]>([
-    { id: 1, name: 'John Smith' },
-    { id: 2, name: 'Jane Smith' },
-    { id: 3, name: 'Alex Johnson' },
-    { id: 4, name: 'Maria Garcia' },
-    { id: 5, name: 'David Lee' },
-  ]);
 
   // Reset form when file changes
   useEffect(() => {
