@@ -15,27 +15,27 @@ const UploadPage = () => {
   
   // Fetch reference data from database
   useEffect(() => {
-    // In a real implementation, these would come from your database via IPC
-    // For now, we'll use placeholder data
-    setMediaTypes([
-      { id: 1, name: 'Image' },
-      { id: 2, name: 'Video' },
-      { id: 3, name: 'Document' },
-      { id: 4, name: 'Audio' }
-    ]);
+    const fetchReferenceData = async () => {
+      try {
+        const [mediaTypesList, sourceTypesList, collectionsList, tagsList, peopleList] = await Promise.all([
+          window.electronAPI.getMediaTypes(),
+          window.electronAPI.getSourceTypes(),
+          window.electronAPI.getCollections(),
+          window.electronAPI.getTags(),
+          window.electronAPI.getPeople()
+        ]);
+        
+        setMediaTypes(mediaTypesList);
+        setSourceTypes(sourceTypesList);
+        setCollections(collectionsList);
+        setExistingTags(tagsList);
+        setExistingPeople(peopleList);
+      } catch (error) {
+        console.error('Error fetching reference data:', error);
+      }
+    };
     
-    setSourceTypes([
-      { id: 1, name: 'Digital Camera' },
-      { id: 2, name: 'Phone' },
-      { id: 3, name: 'Scanned Photo' },
-      { id: 4, name: 'Scanned Document' }
-    ]);
-    
-    setCollections([
-      { id: 1, name: 'Family Vacation 2023' },
-      { id: 2, name: 'Wedding Anniversary' },
-      { id: 3, name: 'Birthday Party' }
-    ]);
+    fetchReferenceData();
   }, []);
   
   // Handle file selection
@@ -51,16 +51,29 @@ const UploadPage = () => {
     setCurrentFile(file);
   };
   
-  // Handle saving metadata
-  const handleSaveMetadata = async (metadata: any) => {
-    try {
-      // In a real implementation, this would:
-      // 1. Use Electron IPC to communicate with main process
-      // 2. Copy the file to your media storage location
-      // 3. Save metadata to the SQLite database
-      console.log('Saving file:', metadata.file.name);
-      console.log('Metadata:', metadata);
-      
+// Handle saving metadata
+const handleSaveMetadata = async (metadata: any) => {
+  try {
+    // Prepare data for saving
+    const data = {
+      filePath: metadata.file.path, // This is the full path from Electron's file dialog
+      metadata: {
+        title: metadata.title,
+        description: metadata.description,
+        mediaTypeId: metadata.mediaTypeId,
+        sourceTypeId: metadata.sourceTypeId,
+        captureDate: metadata.captureDate,
+        location: metadata.location,
+        collectionId: metadata.collectionId,
+        tags: metadata.tags,
+        people: metadata.people
+      }
+    };
+    
+    // Send to Electron main process via IPC
+    const result = await window.electronAPI.saveMedia(data);
+    
+    if (result.success) {
       // Remove the saved file from the queue
       const newSelectedFiles = selectedFiles.filter(f => f !== metadata.file);
       setSelectedFiles(newSelectedFiles);
@@ -74,11 +87,14 @@ const UploadPage = () => {
       
       // Show success message
       alert(`${metadata.file.name} saved successfully!`);
-    } catch (error) {
-      console.error('Error saving file:', error);
-      alert('Error saving file. Please try again.');
+    } else {
+      throw new Error(result.error || 'Unknown error occurred');
     }
-  };
+  } catch (error) {
+    console.error('Error saving file:', error);
+    alert(`Error saving file: ${error.message}`);
+  }
+};
   
   return (
     <Container fluid className="py-4">

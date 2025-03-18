@@ -1,28 +1,14 @@
 "use strict";
 const electron = require("electron");
-electron.contextBridge.exposeInMainWorld("ipcRenderer", {
-  on(...args) {
-    const [channel, listener] = args;
-    return electron.ipcRenderer.on(channel, (event, ...args2) => listener(event, ...args2));
-  },
-  off(...args) {
-    const [channel, ...omit] = args;
-    return electron.ipcRenderer.off(channel, ...omit);
-  },
-  send(...args) {
-    const [channel, ...omit] = args;
-    return electron.ipcRenderer.send(channel, ...omit);
-  },
-  invoke(...args) {
-    const [channel, ...omit] = args;
-    return electron.ipcRenderer.invoke(channel, ...omit);
-  },
-  database: {
-    getAllMedia: () => electron.ipcRenderer.invoke("get-all-media")
-    // Add more methods as needed
-  },
-  sendMessage: (message) => electron.ipcRenderer.send("message", message),
-  onMessage: (callback) => electron.ipcRenderer.on("main-process-message", (_event, ...args) => callback(...args))
-  // You can expose other APTs you need here.
-  // ...
+electron.contextBridge.exposeInMainWorld("electronAPI", {
+  // File operations
+  selectFiles: () => electron.ipcRenderer.invoke("select-files"),
+  saveMedia: (data) => electron.ipcRenderer.invoke("save-media", data),
+  // Database operations
+  getMediaTypes: () => electron.ipcRenderer.invoke("get-media-types"),
+  getSourceTypes: () => electron.ipcRenderer.invoke("get-source-types"),
+  getCollections: () => electron.ipcRenderer.invoke("get-collections"),
+  getTags: () => electron.ipcRenderer.invoke("get-tags"),
+  getPeople: () => electron.ipcRenderer.invoke("get-people")
+  // Other existing APIs...
 });
