@@ -169,7 +169,8 @@ const UploadPage = () => {
       }
     } catch (error) {
       console.error('Error saving file:', error);
-      alert(`Error saving file: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Error saving file: ${errorMessage}`);
     }
   };
   

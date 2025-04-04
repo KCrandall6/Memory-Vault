@@ -23,5 +23,15 @@ declare namespace NodeJS {
 
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
-  ipcRenderer: import('electron').IpcRenderer
+  electronAPI: {
+    selectFiles: () => Promise<any[]>;
+    saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
+    getThumbnail: (filePath: string) => Promise<{ thumbnailPath: string; thumbnailFileName: string } | null>;
+    getMediaTypes: () => Promise<any[]>;
+    getSourceTypes: () => Promise<any[]>;
+    getCollections: () => Promise<any[]>;
+    getTags: () => Promise<any[]>;
+    getPeople: () => Promise<any[]>;
+    onMainProcessMessage: (callback: (...args: any[]) => void) => void;
+  }
 }
