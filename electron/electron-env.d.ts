@@ -26,7 +26,7 @@ interface Window {
   electronAPI: {
     selectFiles: () => Promise<any[]>;
     saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
-    getThumbnail: (filePath: string) => Promise<{ thumbnailPath: string; thumbnailFileName: string } | null>;
+    getFilePreview: (filePath: string) => Promise<{ dataUrl: string; mimeType: string } | null>;
     getMediaTypes: () => Promise<any[]>;
     getSourceTypes: () => Promise<any[]>;
     getCollections: () => Promise<any[]>;

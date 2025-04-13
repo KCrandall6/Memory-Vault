@@ -1,4 +1,4 @@
-// electron/main.ts - updated for ES modules
+// electron/main.ts - cleaned version
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -9,13 +9,12 @@ import { testDatabase } from './db-test';
 // @ts-ignore - ignore TypeScript error for using require with CommonJS module
 import dbOperations from './database.cjs';
 
+
 // Import file handler as ES module
 import { 
   processMediaFile,
   getAppDataPath,
-  ensureDirectoriesExist,
-  getThumbnail,
-  cleanupTempThumbnails
+  ensureDirectoriesExist
 } from './file-handler.js';
 
 // ES module compatible dirname
@@ -58,39 +57,50 @@ function setupIpcHandlers() {
     }));
   });
   
-// Thumbnail generation handler (on-the-fly)
-ipcMain.handle('get-thumbnail', async (_, filePath) => {
-  try {
-    console.log('getThumbnail called for:', filePath);
-    
-    if (!filePath) {
-      console.log('No file path provided for thumbnail');
-      return null;
-    }
-    
-    console.log('Generating thumbnail for:', filePath);
-    const thumbnail = await fileHandler.getThumbnail(filePath);
-    
-    if (thumbnail) {
-      console.log('Thumbnail generated successfully:', thumbnail.thumbnailPath);
+  // File preview handler
+  ipcMain.handle('get-file-preview', async (_, filePath) => {
+    try {
+      console.log('Generating preview for:', filePath);
+      
+      // Read the file
+      const data = await fs.readFile(filePath);
+      
+      // Get file extension
+      const ext = path.extname(filePath).toLowerCase().substring(1);
+      
+      // Convert to base64
+      const base64 = data.toString('base64');
+      
+      // Create data URL
+      let mimeType = 'application/octet-stream';
+      if (['jpg', 'jpeg'].includes(ext)) mimeType = 'image/jpeg';
+      else if (ext === 'png') mimeType = 'image/png';
+      else if (ext === 'gif') mimeType = 'image/gif';
+      else if (ext === 'pdf') mimeType = 'application/pdf';
+      else if (ext === 'mp4') mimeType = 'video/mp4';
+      
+      console.log('Preview generated with mime type:', mimeType);
       return {
-        thumbnailPath: thumbnail.thumbnailPath,
-        thumbnailFileName: thumbnail.thumbnailFileName
+        dataUrl: `data:${mimeType};base64,${base64}`,
+        mimeType
       };
-    } else {
-      console.log('Failed to generate thumbnail - null result');
+    } catch (error) {
+      console.error('Error reading file:', error);
       return null;
     }
-  } catch (error) {
-    console.error('Error generating thumbnail:', error);
-    return null;
-  }
-});
+  });
   
   // Database query handlers
   ipcMain.handle('get-media-types', async () => {
     try {
-      return await dbOperations.getMediaTypes();
+      const types = await dbOperations.getMediaTypes();
+      console.log('Media types from database:', types);
+      return types.length > 0 ? types : [
+        { id: 1, name: 'Image' },
+        { id: 2, name: 'Video' },
+        { id: 3, name: 'Document' },
+        { id: 4, name: 'Audio' }
+      ];
     } catch (error) {
       console.error('Error getting media types:', error);
       return [
@@ -104,14 +114,25 @@ ipcMain.handle('get-thumbnail', async (_, filePath) => {
   
   ipcMain.handle('get-source-types', async () => {
     try {
-      return await dbOperations.getSourceTypes();
+      const types = await dbOperations.getSourceTypes();
+      console.log('Source types from database:', types);
+      return types.length > 0 ? types : [
+        { id: 1, name: 'Digital Camera' },
+        { id: 2, name: 'Phone' },
+        { id: 3, name: 'Scanned Photo' },
+        { id: 4, name: 'Scanned Document' },
+        { id: 5, name: 'Internet' },
+        { id: 6, name: 'Other' }
+      ];
     } catch (error) {
       console.error('Error getting source types:', error);
       return [
         { id: 1, name: 'Digital Camera' },
         { id: 2, name: 'Phone' },
         { id: 3, name: 'Scanned Photo' },
-        { id: 4, name: 'Scanned Document' }
+        { id: 4, name: 'Scanned Document' },
+        { id: 5, name: 'Internet' },
+        { id: 6, name: 'Other' }
       ];
     }
   });
@@ -155,19 +176,19 @@ ipcMain.handle('get-thumbnail', async (_, filePath) => {
     }
   });
   
-  // Save media handler (no thumbnail generation during upload)
+  // Save media handler
   ipcMain.handle('save-media', async (_, data) => {
     try {
       console.log('Saving media:', data);
       
-      // Process the file (save only, no thumbnail generation)
+      // Process the file
       const processedFile = await processMediaFile(data.filePath, path.basename(data.filePath));
       
       // Prepare media data for database
       const mediaData = {
         file_name: processedFile.fileName,
         file_path: processedFile.relativePath,
-        thumbnail_path: null, // No thumbnails stored in database
+        thumbnail_path: null,
         title: data.metadata.title,
         description: data.metadata.description,
         media_type_id: parseInt(data.metadata.mediaTypeId),
@@ -223,7 +244,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
-      preload: path.join(currentDir, 'preload.mjs'),
+      preload: path.join(currentDir, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     },
@@ -260,9 +281,6 @@ app.on('activate', () => {
   }
 });
 
-// Cleanup old temp thumbnails every few hours
-let cleanupInterval: NodeJS.Timeout | null = null;
-
 // App initialization
 app.whenReady().then(async () => {
   try {
@@ -273,23 +291,11 @@ app.whenReady().then(async () => {
     // Create necessary directories
     await ensureDirectoriesExist();
     
-    // Set up periodic cleanup of temporary thumbnails (every 6 hours)
-    cleanupInterval = setInterval(() => {
-      cleanupTempThumbnails();
-    }, 6 * 60 * 60 * 1000);
-    
     setupIpcHandlers();
     createWindow();
     
     console.log('App initialized successfully');
   } catch (error) {
     console.error('Error during app initialization:', error);
-  }
-});
-
-app.on('quit', () => {
-  // Clean up the interval when the app quits
-  if (cleanupInterval) {
-    clearInterval(cleanupInterval);
   }
 });

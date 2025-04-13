@@ -1,12 +1,11 @@
-// electron/preload.ts - for on-the-fly thumbnails
-
+// electron/preload.ts - cleaned version
 import { contextBridge, ipcRenderer } from 'electron'
 
 // Define TypeScript interfaces for ElectronAPI
 interface ElectronAPI {
   selectFiles: () => Promise<any[]>;
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
-  getThumbnail: (filePath: string) => Promise<{ thumbnailPath: string; thumbnailFileName: string } | null>;
+  getFilePreview: (filePath: string) => Promise<{ dataUrl: string; mimeType: string } | null>;
   getMediaTypes: () => Promise<any[]>;
   getSourceTypes: () => Promise<any[]>;
   getCollections: () => Promise<any[]>;
@@ -20,7 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
   selectFiles: () => ipcRenderer.invoke('select-files'),
   saveMedia: (data) => ipcRenderer.invoke('save-media', data),
-  getThumbnail: (filePath) => ipcRenderer.invoke('get-thumbnail', filePath),
+  getFilePreview: (filePath) => ipcRenderer.invoke('get-file-preview', filePath),
   
   // Database operations
   getMediaTypes: () => ipcRenderer.invoke('get-media-types'),

@@ -1,10 +1,9 @@
-// src/components/upload/MediaPreview.tsx - With debugging
+// src/components/upload/MediaPreview.tsx - cleaned version
 import { useState, useEffect } from 'react';
-import { Card, Spinner, Alert } from 'react-bootstrap';
-import './MediaPreview.css';
+import { Card, Spinner } from 'react-bootstrap';
 
 interface MediaPreviewProps {
-  file: File | any | null; // Accept both browser File objects and Electron file info
+  file: File | any;
 }
 
 const MediaPreview = ({ file }: MediaPreviewProps) => {
@@ -16,109 +15,68 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
 
   useEffect(() => {
     // Clean up previous URL if it exists
-    if (previewUrl) {
+    if (previewUrl && previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl('');
     }
 
-    setDebugInfo(null);
-    
     if (!file) {
-      setFileType('');
       return;
     }
-
-    // Log file info for debugging
-    console.log('File object:', file);
+    
+    // Store debug info
     setDebugInfo(file);
-
+    console.log('File to preview:', file);
+    
     setIsLoading(true);
     setError(null);
-    
-    try {
-      // Determine file type from extension or type property
-      let type = '';
-      if (file.type) {
-        // Browser File object
-        type = file.type;
-      } else if (file.path) {
-        // Electron file object with path
-        const extension = file.path.split('.').pop()?.toLowerCase() || '';
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension)) {
-          type = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
-        } else if (['mp4', 'webm', 'ogg'].includes(extension)) {
-          type = `video/${extension}`;
-        } else if (['mp3', 'wav', 'ogg'].includes(extension)) {
-          type = `audio/${extension}`;
-        } else if (extension === 'pdf') {
-          type = 'application/pdf';
-        } else {
-          type = 'application/octet-stream';
-        }
-      }
-      
-      setFileType(type);
-      console.log('Detected file type:', type);
-      
-      // Generate preview URL for browser File objects
-      if (file instanceof Blob) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-        setIsLoading(false);
-      } 
-      // For Electron file objects, generate thumbnail on-the-fly
-      else if (file.path) {
-        generateThumbnail(file.path, type);
-      }
-    } catch (error) {
-      console.error('Error creating preview:', error);
-      setError(`Error creating preview: ${error instanceof Error ? error.message : String(error)}`);
+
+    // Browser File object
+    if (file instanceof Blob) {
+      setFileType(file.type || '');
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
       setIsLoading(false);
     }
-    
-    // Cleanup function
+    // Electron file object
+    else if (file.path) {
+      const extension = file.path.toLowerCase().split('.').pop();
+      console.log('File extension:', extension);
+      
+      // Get preview using IPC
+      if (window.electronAPI?.getFilePreview) {
+        console.log('Requesting file preview for:', file.path);
+        
+        window.electronAPI.getFilePreview(file.path)
+          .then(result => {
+            console.log('Preview result:', result ? 'Success' : 'Failed');
+            
+            if (result) {
+              setPreviewUrl(result.dataUrl);
+              setFileType(result.mimeType);
+            } else {
+              setError('Could not generate preview');
+            }
+            setIsLoading(false);
+          })
+          .catch(err => {
+            console.error('Error getting file preview:', err);
+            setError(`Error loading preview: ${err.message || 'Unknown error'}`);
+            setIsLoading(false);
+          });
+      } else {
+        console.error('getFilePreview method not available');
+        setError('Preview generation not available');
+        setIsLoading(false);
+      }
+    }
+
     return () => {
-      if (previewUrl) {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
         URL.revokeObjectURL(previewUrl);
       }
     };
   }, [file]);
-
-  // Function to request thumbnail generation from Electron main process
-  const generateThumbnail = async (filePath: string, fileType: string) => {
-    try {
-      console.log('Generating thumbnail for:', filePath, 'of type:', fileType);
-      
-      // Only attempt to generate thumbnails for images initially
-      if (fileType.startsWith('image/')) {
-        if (window.electronAPI?.getThumbnail) {
-          console.log('Calling electronAPI.getThumbnail');
-          const thumbnail = await window.electronAPI.getThumbnail(filePath);
-          console.log('Thumbnail result:', thumbnail);
-          
-          if (thumbnail && thumbnail.thumbnailPath) {
-            // Convert file path to URL format for renderer process
-            const thumbnailUrl = `file://${thumbnail.thumbnailPath}`;
-            console.log('Setting thumbnail URL:', thumbnailUrl);
-            setPreviewUrl(thumbnailUrl);
-          } else {
-            setError('Could not generate thumbnail');
-          }
-        } else {
-          setError('electronAPI.getThumbnail is not available');
-          console.error('electronAPI.getThumbnail is not available');
-        }
-      } else {
-        console.log('Skipping thumbnail generation for non-image file type:', fileType);
-      }
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error generating thumbnail:', error);
-      setError(`Error generating thumbnail: ${error instanceof Error ? error.message : String(error)}`);
-      setIsLoading(false);
-    }
-  };
 
   if (!file) {
     return (
@@ -130,16 +88,13 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
     );
   }
 
-  const getFileTypeIcon = () => {
-    if (fileType.startsWith('image/')) return '📷';
-    if (fileType.startsWith('video/')) return '🎥';
-    if (fileType.startsWith('audio/')) return '🎵';
-    if (fileType.includes('pdf')) return '📑';
-    return '📄';
-  };
-
   const getFileName = () => {
-    return file.name || (file.path ? file.path.split('\\').pop().split('/').pop() : 'Unknown file');
+    if (file.name) return file.name;
+    if (file.path) {
+      const parts = file.path.split(/[/\\]/);
+      return parts[parts.length - 1];
+    }
+    return 'Unknown file';
   };
 
   return (
@@ -147,77 +102,82 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
       <Card.Header>
         <h5 className="mb-0">{getFileName()}</h5>
       </Card.Header>
-      <Card.Body className="preview-container">
+      <Card.Body className="d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
         {isLoading ? (
           <div className="text-center">
-            <Spinner animation="border" role="status" variant="primary">
+            <Spinner animation="border" role="status">
               <span className="visually-hidden">Loading...</span>
             </Spinner>
-            <p className="mt-2">Generating preview...</p>
+            <p className="mt-2">Loading preview...</p>
           </div>
         ) : error ? (
           <div className="text-center text-danger">
             <p>{error}</p>
-            {debugInfo && (
-              <details className="mt-3">
-                <summary>Debug Info</summary>
-                <pre className="text-start text-muted small mt-2">
-                  {JSON.stringify(debugInfo, null, 2)}
-                </pre>
-              </details>
-            )}
+            
+            {/* Debug information section */}
+            <details className="mt-3">
+              <summary className="text-secondary">Debug Info</summary>
+              <div className="mt-2 text-start">
+                <p className="small">File path: {file.path || 'N/A'}</p>
+                <p className="small">File type: {file.type || 'N/A'}</p>
+                <p className="small">File size: {file.size ? `${Math.round(file.size / 1024)} KB` : 'N/A'}</p>
+              </div>
+            </details>
           </div>
         ) : previewUrl && fileType.startsWith('image/') ? (
           <img 
             src={previewUrl} 
             alt="Preview" 
-            className="preview-image"
+            className="img-fluid" 
+            style={{ maxHeight: '300px' }}
             onError={(e) => {
-              console.error('Image failed to load:', previewUrl);
-              setError(`Failed to load image: ${previewUrl}`);
-              e.currentTarget.style.display = 'none';
+              console.error('Image failed to load:', previewUrl.substring(0, 100) + '...');
+              setError('Failed to load image preview');
             }}
           />
         ) : previewUrl && fileType.startsWith('video/') ? (
           <video 
             src={previewUrl} 
             controls 
-            className="w-100 h-100"
+            className="w-100" 
+            style={{ maxHeight: '300px' }}
           >
             Your browser does not support the video tag.
           </video>
-        ) : previewUrl && fileType.startsWith('audio/') ? (
-          <audio 
-            src={previewUrl} 
-            controls 
-            className="w-100"
-          >
-            Your browser does not support the audio tag.
-          </audio>
-        ) : previewUrl && fileType.includes('pdf') ? (
+        ) : previewUrl && fileType === 'application/pdf' ? (
           <iframe 
             src={previewUrl} 
-            className="pdf-preview"
-            title="PDF Preview"
+            title="PDF preview" 
+            width="100%" 
+            height="300px" 
+            style={{ border: 'none' }}
           />
         ) : (
           <div className="text-center">
-            <div className="mb-3" style={{ fontSize: '5rem' }}>
-              {getFileTypeIcon()}
+            <div className="mb-3" style={{ fontSize: '3rem' }}>
+              {fileType.startsWith('image/') && '📷'}
+              {fileType.startsWith('video/') && '🎥'}
+              {fileType.startsWith('audio/') && '🎵'}
+              {fileType.includes('pdf') && '📑'}
+              {!fileType.startsWith('image/') && 
+               !fileType.startsWith('video/') && 
+               !fileType.startsWith('audio/') && 
+               !fileType.includes('pdf') && '📄'}
             </div>
             <p className="text-muted">
               {fileType ? 'Preview not available for this file type' : 'File type unknown'}
             </p>
             <p className="text-muted small">{fileType || 'No MIME type available'}</p>
             
-            {debugInfo && (
-              <details className="mt-3">
-                <summary>Debug Info</summary>
-                <pre className="text-start text-muted small mt-2">
-                  {JSON.stringify(debugInfo, null, 2)}
-                </pre>
-              </details>
-            )}
+            {/* Debug information section */}
+            <details className="mt-3">
+              <summary className="text-secondary">Debug Info</summary>
+              <div className="mt-2 text-start">
+                <p className="small">File path: {file.path || 'N/A'}</p>
+                <p className="small">File type: {file.type || 'N/A'}</p>
+                <p className="small">File size: {file.size ? `${Math.round(file.size / 1024)} KB` : 'N/A'}</p>
+              </div>
+            </details>
           </div>
         )}
       </Card.Body>

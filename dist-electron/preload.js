@@ -3,7 +3,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // File operations
   selectFiles: () => ipcRenderer.invoke("select-files"),
   saveMedia: (data) => ipcRenderer.invoke("save-media", data),
-  getThumbnail: (filePath) => ipcRenderer.invoke("get-thumbnail", filePath),
+  getFilePreview: (filePath) => ipcRenderer.invoke("get-file-preview", filePath),
   // Database operations
   getMediaTypes: () => ipcRenderer.invoke("get-media-types"),
   getSourceTypes: () => ipcRenderer.invoke("get-source-types"),

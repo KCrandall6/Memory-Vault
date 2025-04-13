@@ -4,7 +4,6 @@ import path$1 from "path";
 import fs$1 from "fs/promises";
 import require$$2 from "fs";
 import require$$3 from "better-sqlite3";
-import "sharp";
 const currentFilePath$1 = import.meta.url;
 const currentDir$1 = path$1.dirname(fileURLToPath(currentFilePath$1));
 async function testDatabase() {
@@ -292,11 +291,9 @@ const getAppDataPath = () => {
 };
 async function ensureDirectoriesExist() {
   const mediaDir = path$1.join(getAppDataPath(), "Media");
-  const tempDir = path$1.join(getAppDataPath(), "Temp");
   try {
     await fs$1.mkdir(mediaDir, { recursive: true });
-    await fs$1.mkdir(tempDir, { recursive: true });
-    return { mediaDir, tempDir };
+    return { mediaDir };
   } catch (error) {
     console.error("Error creating directories:", error);
     throw error;
@@ -331,32 +328,11 @@ async function processMediaFile(filePath, fileName) {
     return {
       ...fileInfo,
       thumbnail: null
-      // No thumbnail generated during upload
+      // No thumbnail
     };
   } catch (error) {
     console.error("Error processing media file:", error);
     throw error;
-  }
-}
-async function cleanupTempThumbnails(maxAgeMs = 24 * 60 * 60 * 1e3) {
-  try {
-    const { tempDir } = await ensureDirectoriesExist();
-    const now = Date.now();
-    const files = await fs$1.readdir(tempDir);
-    for (const file of files) {
-      const filePath = path$1.join(tempDir, file);
-      const stats = await fs$1.stat(filePath);
-      if (now - stats.mtime.getTime() > maxAgeMs) {
-        try {
-          await fs$1.unlink(filePath);
-          console.log("Deleted old thumbnail:", file);
-        } catch (err) {
-          console.error("Error deleting thumbnail:", err);
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Error cleaning up temp thumbnails:", error);
   }
 }
 const currentFilePath = import.meta.url;
@@ -389,33 +365,38 @@ function setupIpcHandlers() {
       };
     }));
   });
-  ipcMain.handle("get-thumbnail", async (_, filePath) => {
+  ipcMain.handle("get-file-preview", async (_, filePath) => {
     try {
-      console.log("getThumbnail called for:", filePath);
-      if (!filePath) {
-        console.log("No file path provided for thumbnail");
-        return null;
-      }
-      console.log("Generating thumbnail for:", filePath);
-      const thumbnail = await fileHandler.getThumbnail(filePath);
-      if (thumbnail) {
-        console.log("Thumbnail generated successfully:", thumbnail.thumbnailPath);
-        return {
-          thumbnailPath: thumbnail.thumbnailPath,
-          thumbnailFileName: thumbnail.thumbnailFileName
-        };
-      } else {
-        console.log("Failed to generate thumbnail - null result");
-        return null;
-      }
+      console.log("Generating preview for:", filePath);
+      const data = await fs$1.readFile(filePath);
+      const ext = path$1.extname(filePath).toLowerCase().substring(1);
+      const base64 = data.toString("base64");
+      let mimeType = "application/octet-stream";
+      if (["jpg", "jpeg"].includes(ext)) mimeType = "image/jpeg";
+      else if (ext === "png") mimeType = "image/png";
+      else if (ext === "gif") mimeType = "image/gif";
+      else if (ext === "pdf") mimeType = "application/pdf";
+      else if (ext === "mp4") mimeType = "video/mp4";
+      console.log("Preview generated with mime type:", mimeType);
+      return {
+        dataUrl: `data:${mimeType};base64,${base64}`,
+        mimeType
+      };
     } catch (error) {
-      console.error("Error generating thumbnail:", error);
+      console.error("Error reading file:", error);
       return null;
     }
   });
   ipcMain.handle("get-media-types", async () => {
     try {
-      return await dbOperations.getMediaTypes();
+      const types = await dbOperations.getMediaTypes();
+      console.log("Media types from database:", types);
+      return types.length > 0 ? types : [
+        { id: 1, name: "Image" },
+        { id: 2, name: "Video" },
+        { id: 3, name: "Document" },
+        { id: 4, name: "Audio" }
+      ];
     } catch (error) {
       console.error("Error getting media types:", error);
       return [
@@ -428,14 +409,25 @@ function setupIpcHandlers() {
   });
   ipcMain.handle("get-source-types", async () => {
     try {
-      return await dbOperations.getSourceTypes();
+      const types = await dbOperations.getSourceTypes();
+      console.log("Source types from database:", types);
+      return types.length > 0 ? types : [
+        { id: 1, name: "Digital Camera" },
+        { id: 2, name: "Phone" },
+        { id: 3, name: "Scanned Photo" },
+        { id: 4, name: "Scanned Document" },
+        { id: 5, name: "Internet" },
+        { id: 6, name: "Other" }
+      ];
     } catch (error) {
       console.error("Error getting source types:", error);
       return [
         { id: 1, name: "Digital Camera" },
         { id: 2, name: "Phone" },
         { id: 3, name: "Scanned Photo" },
-        { id: 4, name: "Scanned Document" }
+        { id: 4, name: "Scanned Document" },
+        { id: 5, name: "Internet" },
+        { id: 6, name: "Other" }
       ];
     }
   });
@@ -483,7 +475,6 @@ function setupIpcHandlers() {
         file_name: processedFile.fileName,
         file_path: processedFile.relativePath,
         thumbnail_path: null,
-        // No thumbnails stored in database
         title: data.metadata.title,
         description: data.metadata.description,
         media_type_id: parseInt(data.metadata.mediaTypeId),
@@ -521,7 +512,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path$1.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
-      preload: path$1.join(currentDir, "preload.mjs"),
+      preload: path$1.join(currentDir, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false
     },
@@ -551,25 +542,16 @@ app$1.on("activate", () => {
     createWindow();
   }
 });
-let cleanupInterval = null;
 app$1.whenReady().then(async () => {
   try {
     const dbTestResult = await testDatabase();
     console.log("Database test result:", dbTestResult);
     await ensureDirectoriesExist();
-    cleanupInterval = setInterval(() => {
-      cleanupTempThumbnails();
-    }, 6 * 60 * 60 * 1e3);
     setupIpcHandlers();
     createWindow();
     console.log("App initialized successfully");
   } catch (error) {
     console.error("Error during app initialization:", error);
-  }
-});
-app$1.on("quit", () => {
-  if (cleanupInterval) {
-    clearInterval(cleanupInterval);
   }
 });
 export {
