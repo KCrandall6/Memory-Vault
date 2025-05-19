@@ -13,7 +13,6 @@ import dbOperations from './database.cjs';
 // Import file handler as ES module
 import { 
   processMediaFile,
-  getAppDataPath,
   ensureDirectoriesExist
 } from './file-handler.js';
 
@@ -108,31 +107,6 @@ function setupIpcHandlers() {
         { id: 2, name: 'Video' },
         { id: 3, name: 'Document' },
         { id: 4, name: 'Audio' }
-      ];
-    }
-  });
-  
-  ipcMain.handle('get-source-types', async () => {
-    try {
-      const types = await dbOperations.getSourceTypes();
-      console.log('Source types from database:', types);
-      return types.length > 0 ? types : [
-        { id: 1, name: 'Digital Camera' },
-        { id: 2, name: 'Phone' },
-        { id: 3, name: 'Scanned Photo' },
-        { id: 4, name: 'Scanned Document' },
-        { id: 5, name: 'Internet' },
-        { id: 6, name: 'Other' }
-      ];
-    } catch (error) {
-      console.error('Error getting source types:', error);
-      return [
-        { id: 1, name: 'Digital Camera' },
-        { id: 2, name: 'Phone' },
-        { id: 3, name: 'Scanned Photo' },
-        { id: 4, name: 'Scanned Document' },
-        { id: 5, name: 'Internet' },
-        { id: 6, name: 'Other' }
       ];
     }
   });

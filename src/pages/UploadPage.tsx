@@ -36,7 +36,6 @@ const UploadPage = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [mediaTypes, setMediaTypes] = useState<MediaType[]>([]);
-  const [sourceTypes, setSourceTypes] = useState<SourceType[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [existingTags, setExistingTags] = useState<Tag[]>([]);
   const [existingPeople, setExistingPeople] = useState<Person[]>([]);
@@ -44,23 +43,7 @@ const UploadPage = () => {
   // Fetch reference data from database
   useEffect(() => {
     const fetchReferenceData = async () => {
-      try {
-        // Get media types
-        let mediaTypesList: MediaType[] = [];
-        try {
-          mediaTypesList = await window.electronAPI.getMediaTypes();
-        } catch (err) {
-          console.warn('Error fetching media types:', err);
-        }
-        
-        // Get source types
-        let sourceTypesList: SourceType[] = [];
-        try {
-          sourceTypesList = await window.electronAPI.getSourceTypes();
-        } catch (err) {
-          console.warn('Error fetching source types:', err);
-        }
-        
+      try {        
         // Get collections
         let collectionsList: Collection[] = [];
         try {
@@ -97,8 +80,11 @@ const UploadPage = () => {
           ];
         }
         
-        setMediaTypes(mediaTypesList);
-        setSourceTypes(sourceTypesList);
+        setMediaTypes([
+          { id: 'photo', name: 'Photo' },
+          { id: 'video', name: 'Video' },
+          { id: 'document', name: 'Document' }
+        ]);
         setCollections(collectionsList);
         setExistingTags(tagsList);
         setExistingPeople(peopleList);
@@ -136,7 +122,6 @@ const UploadPage = () => {
           title: metadata.title,
           description: metadata.description,
           mediaTypeId: metadata.mediaTypeId,
-          sourceTypeId: metadata.sourceTypeId,
           captureDate: metadata.captureDate,
           location: metadata.location,
           collectionId: metadata.collectionId,
@@ -228,7 +213,6 @@ const UploadPage = () => {
                   file={currentFile}
                   onSave={handleSaveMetadata}
                   mediaTypes={mediaTypes}
-                  sourceTypes={sourceTypes}
                   collections={collections}
                   existingTags={existingTags}
                   existingPeople={existingPeople}

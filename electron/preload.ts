@@ -7,7 +7,6 @@ interface ElectronAPI {
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
   getFilePreview: (filePath: string) => Promise<{ dataUrl: string; mimeType: string } | null>;
   getMediaTypes: () => Promise<any[]>;
-  getSourceTypes: () => Promise<any[]>;
   getCollections: () => Promise<any[]>;
   getTags: () => Promise<any[]>;
   getPeople: () => Promise<any[]>;
@@ -22,8 +21,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFilePreview: (filePath) => ipcRenderer.invoke('get-file-preview', filePath),
   
   // Database operations
-  getMediaTypes: () => ipcRenderer.invoke('get-media-types'),
-  getSourceTypes: () => ipcRenderer.invoke('get-source-types'),
   getCollections: () => ipcRenderer.invoke('get-collections'),
   getTags: () => ipcRenderer.invoke('get-tags'),
   getPeople: () => ipcRenderer.invoke('get-people'),

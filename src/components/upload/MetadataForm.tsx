@@ -21,7 +21,6 @@ interface MetadataFormProps {
   file: File | null;
   onSave: (metadata: any) => void;
   mediaTypes: any[];
-  sourceTypes: any[];
   collections: any[];
   existingTags?: any[];
   existingPeople?: any[];
@@ -31,7 +30,6 @@ const MetadataForm = ({
     file, 
     onSave, 
     mediaTypes, 
-    sourceTypes, 
     collections,
     existingTags = [],
     existingPeople = []
@@ -42,7 +40,6 @@ const MetadataForm = ({
     captureDate: '',
     location: '',
     mediaTypeId: '',
-    sourceTypeId: '',
     collectionId: '',
     collectionSearchTerm: '',
     newTag: '',
@@ -62,7 +59,6 @@ const MetadataForm = ({
         captureDate: '',
         location: '',
         mediaTypeId: determineMediaType(file),
-        sourceTypeId: '',
         collectionId: '',
         collectionSearchTerm: '',
         newTag: '',
@@ -250,21 +246,6 @@ const MetadataForm = ({
             >
               <option value="">Select...</option>
               {mediaTypes.map(type => (
-                <option key={type.id} value={type.id}>{type.name}</option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </Col>
-        <Col>
-          <Form.Group className="mb-3">
-            <Form.Label>Source Type</Form.Label>
-            <Form.Select
-              name="sourceTypeId"
-              value={formData.sourceTypeId}
-              onChange={handleInputChange}
-            >
-              <option value="">Select...</option>
-              {sourceTypes.map(type => (
                 <option key={type.id} value={type.id}>{type.name}</option>
               ))}
             </Form.Select>
