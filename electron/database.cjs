@@ -436,7 +436,7 @@ function linkPersonToMedia(mediaId, personId) {
   }
 }
 
-// Add a new collection
+// Add a new collection with description
 function addCollection(name, description = '') {
   try {
     if (!db) throw new Error('Database not initialized');
@@ -456,6 +456,7 @@ function addCollection(name, description = '') {
     throw error;
   }
 }
+
 
 // Update media record
 function updateMedia(id, mediaData) {
@@ -540,5 +541,6 @@ module.exports = {
   addTag,
   addPerson,
   linkTagToMedia,
-  linkPersonToMedia
+  linkPersonToMedia,
+  addCollection
 };

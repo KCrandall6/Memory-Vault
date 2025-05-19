@@ -1,5 +1,5 @@
 // electron/preload.ts - cleaned version
-import { contextBridge, ipcRenderer } from 'electron'
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Define TypeScript interfaces for ElectronAPI
 interface ElectronAPI {

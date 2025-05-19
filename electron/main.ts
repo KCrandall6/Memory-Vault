@@ -169,8 +169,21 @@ function setupIpcHandlers() {
         source_type_id: data.metadata.sourceTypeId ? parseInt(data.metadata.sourceTypeId) : null,
         capture_date: data.metadata.captureDate || null,
         location: data.metadata.location || null,
-        collection_id: data.metadata.collectionId ? parseInt(data.metadata.collectionId) : null
+        collection_id: null // Will be set below
       };
+      
+      // Process collection
+      if (data.metadata.collection) {
+        const collection = data.metadata.collection;
+        // If collection has negative ID, it's a new collection
+        const collectionId = collection.id < 0 
+          ? await dbOperations.addCollection(collection.name, collection.description || '')
+          : collection.id;
+        
+        mediaData.collection_id = collectionId;
+      } else if (data.metadata.collectionId) {
+        mediaData.collection_id = parseInt(data.metadata.collectionId);
+      }
       
       // Save media record to database
       const mediaId = await dbOperations.addMedia(mediaData);

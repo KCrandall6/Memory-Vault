@@ -271,6 +271,21 @@ function linkPersonToMedia(mediaId, personId) {
     throw error;
   }
 }
+function addCollection(name, description = "") {
+  try {
+    if (!db) throw new Error("Database not initialized");
+    const existingCollection = db.prepare("SELECT id FROM Collections WHERE name = ?").get(name);
+    if (existingCollection) {
+      return existingCollection.id;
+    }
+    const stmt = db.prepare("INSERT INTO Collections (name, description) VALUES (?, ?)");
+    const info = stmt.run(name, description);
+    return info.lastInsertRowid;
+  } catch (error) {
+    console.error("Error adding collection:", error);
+    throw error;
+  }
+}
 var database = {
   getAllMedia,
   addMedia,
@@ -282,7 +297,8 @@ var database = {
   addTag,
   addPerson,
   linkTagToMedia,
-  linkPersonToMedia
+  linkPersonToMedia,
+  addCollection
 };
 const dbOperations = /* @__PURE__ */ getDefaultExportFromCjs(database);
 const getAppDataPath = () => {
@@ -457,8 +473,16 @@ function setupIpcHandlers() {
         source_type_id: data.metadata.sourceTypeId ? parseInt(data.metadata.sourceTypeId) : null,
         capture_date: data.metadata.captureDate || null,
         location: data.metadata.location || null,
-        collection_id: data.metadata.collectionId ? parseInt(data.metadata.collectionId) : null
+        collection_id: null
+        // Will be set below
       };
+      if (data.metadata.collection) {
+        const collection = data.metadata.collection;
+        const collectionId = collection.id < 0 ? await dbOperations.addCollection(collection.name, collection.description || "") : collection.id;
+        mediaData.collection_id = collectionId;
+      } else if (data.metadata.collectionId) {
+        mediaData.collection_id = parseInt(data.metadata.collectionId);
+      }
       const mediaId = await dbOperations.addMedia(mediaData);
       console.log(`Media saved with ID: ${mediaId}`);
       if (data.metadata.tags && data.metadata.tags.length > 0) {

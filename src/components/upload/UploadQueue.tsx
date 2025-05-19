@@ -1,6 +1,6 @@
 // src/components/upload/UploadQueue.tsx
 import { ListGroup, Badge } from 'react-bootstrap';
-import './UploadQueue.css'; // We'll create this file
+import './UploadQueue.css';
 
 interface UploadQueueProps {
   files: File[];
