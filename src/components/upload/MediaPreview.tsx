@@ -16,7 +16,6 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
   // For expand and zoom features
   const [showFullscreen, setShowFullscreen] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [isZooming, setIsZooming] = useState<boolean>(false);
   const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -29,7 +28,6 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
     // Reset zoom and fullscreen when file changes
     setZoomLevel(1);
     setShowFullscreen(false);
-    setIsZooming(false);
 
     if (!file) {
       return;
@@ -102,29 +100,6 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
     setZoomLevel(1);
   };
 
-  // Handle image hover zoom
-  const handleMouseEnter = () => {
-    if (fileType.startsWith('image/')) {
-      setIsZooming(true);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setIsZooming(false);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (!isZooming || !imageRef.current) return;
-    
-    const { left, top, width, height } = imageRef.current.getBoundingClientRect();
-    const x = (e.clientX - left) / width;
-    const y = (e.clientY - top) / height;
-    
-    // Move the image based on cursor position
-    if (imageRef.current) {
-      imageRef.current.style.transformOrigin = `${x * 100}% ${y * 100}%`;
-    }
-  };
 
   if (!file) {
     return (
@@ -262,20 +237,13 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
                 className="img-fluid" 
                 style={{ 
                   maxHeight: '500px', 
-                  transform: isZooming ? `scale(1.5)` : 'scale(1)',
                   transition: 'transform 0.2s ease'
                 }}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                onMouseMove={handleMouseMove}
                 onError={(e) => {
                   console.error('Image failed to load:', previewUrl.substring(0, 100) + '...');
                   setError('Failed to load image preview');
                 }}
               />
-              <div className="preview-instructions position-absolute bottom-0 end-0 p-2 bg-dark bg-opacity-50 text-white rounded">
-                <small>Hover to zoom</small>
-              </div>
             </div>
           ) : previewUrl && fileType.startsWith('video/') ? (
             <video 
