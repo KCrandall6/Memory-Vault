@@ -4,7 +4,10 @@ import { Container, Row, Col, Card } from 'react-bootstrap';
 import FileSelector from '../components/upload/FileSelector';
 import UploadQueue from '../components/upload/UploadQueue';
 import MediaPreview from '../components/upload/MediaPreview';
-import MetadataForm, { MetadataDraft } from '../components/upload/MetadataForm';
+import MetadataForm, {
+  MetadataDraft,
+  MetadataSubmitPayload
+} from '../components/upload/MetadataForm';
 
 // Define interfaces for your data structures
 interface MediaType {
@@ -12,14 +15,10 @@ interface MediaType {
   name: string;
 }
 
-interface SourceType {
-  id: number;
-  name: string;
-}
-
 interface Collection {
   id: number;
   name: string;
+  description?: string;
 }
 
 interface Tag {
@@ -50,94 +49,94 @@ const UploadPage = () => {
   };
 
   // Fetch reference data from database
-useEffect(() => {
-  let isMounted = true;
+  useEffect(() => {
+    let isMounted = true;
 
-  const fetchReferenceData = async () => {
-    try {
-      const fallbackMediaTypes: MediaType[] = [
-        { id: 1, name: 'Image' },
-        { id: 2, name: 'Video' },
-        { id: 3, name: 'Document' },
-        { id: 4, name: 'Audio' }
-      ];
+    const fetchReferenceData = async () => {
+      try {
+        const fallbackMediaTypes: MediaType[] = [
+          { id: 1, name: 'Image' },
+          { id: 2, name: 'Video' },
+          { id: 3, name: 'Document' },
+          { id: 4, name: 'Audio' }
+        ];
 
-      const mediaTypesFromDb = await window.electronAPI
-        .getMediaTypes()
-        .catch((err: unknown) => {
-          console.warn('Error fetching media types:', err);
-          return [] as MediaType[];
-        });
+        const mediaTypesFromDb = await window.electronAPI
+          .getMediaTypes()
+          .catch((err: unknown) => {
+            console.warn('Error fetching media types:', err);
+            return [] as MediaType[];
+          });
 
-      const mediaTypesList =
-        mediaTypesFromDb && mediaTypesFromDb.length > 0
-          ? mediaTypesFromDb
-          : fallbackMediaTypes;
+        const mediaTypesList =
+          mediaTypesFromDb && mediaTypesFromDb.length > 0
+            ? mediaTypesFromDb
+            : fallbackMediaTypes;
 
-      const collectionsList = await window.electronAPI
-        .getCollections()
-        .catch((err: unknown) => {
-          console.warn('Error fetching collections:', err);
-          return [] as Collection[];
-        });
+        const collectionsList = await window.electronAPI
+          .getCollections()
+          .catch((err: unknown) => {
+            console.warn('Error fetching collections:', err);
+            return [] as Collection[];
+          });
 
-      const tagsListFromDb = await window.electronAPI
-        .getTags()
-        .catch((err: unknown) => {
-          console.warn('Error fetching tags:', err);
-          return [] as Tag[];
-        });
+        const tagsListFromDb = await window.electronAPI
+          .getTags()
+          .catch((err: unknown) => {
+            console.warn('Error fetching tags:', err);
+            return [] as Tag[];
+          });
 
-      const tagsList =
-        tagsListFromDb && tagsListFromDb.length > 0
-          ? tagsListFromDb
-          : [
-              { id: 1, name: 'family' },
-              { id: 2, name: 'vacation' },
-              { id: 3, name: 'birthday' }
-            ];
+        const tagsList =
+          tagsListFromDb && tagsListFromDb.length > 0
+            ? tagsListFromDb
+            : [
+                { id: 1, name: 'family' },
+                { id: 2, name: 'vacation' },
+                { id: 3, name: 'birthday' }
+              ];
 
-      const peopleListFromDb = await window.electronAPI
-        .getPeople()
-        .catch((err: unknown) => {
-          console.warn('Error fetching people:', err);
-          return [] as Person[];
-        });
+        const peopleListFromDb = await window.electronAPI
+          .getPeople()
+          .catch((err: unknown) => {
+            console.warn('Error fetching people:', err);
+            return [] as Person[];
+          });
 
-      const peopleList =
-        peopleListFromDb && peopleListFromDb.length > 0
-          ? peopleListFromDb
-          : [
-              { id: 1, name: 'John Smith' },
-              { id: 2, name: 'Jane Smith' },
-              { id: 3, name: 'Alex Johnson' }
-            ];
+        const peopleList =
+          peopleListFromDb && peopleListFromDb.length > 0
+            ? peopleListFromDb
+            : [
+                { id: 1, name: 'John Smith' },
+                { id: 2, name: 'Jane Smith' },
+                { id: 3, name: 'Alex Johnson' }
+              ];
 
-      if (!isMounted) {
-        return;
+        if (!isMounted) {
+          return;
+        }
+
+        setMediaTypes(mediaTypesList);
+        setCollections(collectionsList);
+        setExistingTags(tagsList);
+        setExistingPeople(peopleList);
+      } catch (error) {
+        console.error('Error fetching reference data:', error);
       }
+    };
 
-      setMediaTypes(mediaTypesList);
-      setCollections(collectionsList);
-      setExistingTags(tagsList);
-      setExistingPeople(peopleList);
-    } catch (error) {
-      console.error('Error fetching reference data:', error);
-    }
-  };
+    void fetchReferenceData();
 
-  void fetchReferenceData();
-
-  return () => {
-    isMounted = false;
-  };
-}, []);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
   // Handle file selection
-  const handleFilesSelected = (files: any[]) => {
+  const handleFilesSelected = (files: File[]) => {
     console.log('Files selected:', files);
     if (!files || files.length === 0) return;
-    
+
     setSelectedFiles(prev => [...prev, ...files]);
     if (!currentFile && files.length > 0) {
       setCurrentFile(files[0]);
@@ -150,11 +149,15 @@ useEffect(() => {
   };
   
   // Handle saving metadata
-  const handleSaveMetadata = async (metadata: any) => {
+  const handleSaveMetadata = async (metadata: MetadataSubmitPayload) => {
     try {
+      const fileWithPath = metadata.file as File & { path?: string };
+      if (!fileWithPath.path) {
+        throw new Error('File path missing from selected file');
+      }
       // Prepare data for saving
       const data = {
-        filePath: metadata.file.path, // This is the full path from Electron's file dialog
+        filePath: fileWithPath.path, // This is the full path from Electron's file dialog
         metadata: {
           title: metadata.title,
           description: metadata.description,
@@ -180,12 +183,12 @@ useEffect(() => {
         if (metadata.file) {
           const key = getFileKey(metadata.file);
           setMetadataDrafts(prev => {
-            const { [key]: removedDraft, ...rest } = prev;
-            void removedDraft;
-            return rest;
+            const nextDrafts = { ...prev };
+            delete nextDrafts[key];
+            return nextDrafts;
           });
         }
-        
+
         // Select the next file or clear
         if (newSelectedFiles.length > 0) {
           setCurrentFile(newSelectedFiles[0]);
@@ -205,7 +208,7 @@ useEffect(() => {
     }
   };
 
-    const handleDraftChange = (file: File, draft: MetadataDraft) => {
+  const handleDraftChange = (file: File, draft: MetadataDraft) => {
     const key = getFileKey(file);
     setMetadataDrafts(prev => ({
       ...prev,
@@ -239,7 +242,7 @@ useEffect(() => {
                 <h5 className="mb-0">Upload Queue</h5>
               </Card.Header>
               <Card.Body className="p-0">
-                <UploadQueue 
+                <UploadQueue
                   files={selectedFiles}
                   currentFile={currentFile}
                   onFileSelect={handleFileSelect}
