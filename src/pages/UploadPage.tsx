@@ -50,90 +50,88 @@ const UploadPage = () => {
   };
 
   // Fetch reference data from database
-  useEffect(() => {
-    const fetchReferenceData = async () => {
-      try {
-        // Get media types
-        let mediaTypesList: MediaType[] = [];
-        try {
-          mediaTypesList = await window.electronAPI.getMediaTypes();
-        } catch (err) {
-          console.warn('Error fetching media types:', err);
-        }
+useEffect(() => {
+  let isMounted = true;
 
-        if (!mediaTypesList || mediaTypesList.length === 0) {
-          mediaTypesList = [
-            { id: 1, name: 'Image' },
-            { id: 2, name: 'Video' },
-            { id: 3, name: 'Document' },
-            { id: 4, name: 'Audio' }
-          ];
-        }      
-        // Get media types
-        let mediaTypesList: MediaType[] = [];
-        try {
-          mediaTypesList = await window.electronAPI.getMediaTypes();
-        } catch (err) {
-          console.warn('Error fetching media types:', err);
-        }
+  const fetchReferenceData = async () => {
+    try {
+      const fallbackMediaTypes: MediaType[] = [
+        { id: 1, name: 'Image' },
+        { id: 2, name: 'Video' },
+        { id: 3, name: 'Document' },
+        { id: 4, name: 'Audio' }
+      ];
 
-        if (!mediaTypesList || mediaTypesList.length === 0) {
-          mediaTypesList = [
-            { id: 1, name: 'Image' },
-            { id: 2, name: 'Video' },
-            { id: 3, name: 'Document' },
-            { id: 4, name: 'Audio' }
-          ];
-        }
-        // Get collections
-        let collectionsList: Collection[] = [];
-        try {
-          collectionsList = await window.electronAPI.getCollections();
-        } catch (err) {
+      const mediaTypesFromDb = await window.electronAPI
+        .getMediaTypes()
+        .catch((err: unknown) => {
+          console.warn('Error fetching media types:', err);
+          return [] as MediaType[];
+        });
+
+      const mediaTypesList =
+        mediaTypesFromDb && mediaTypesFromDb.length > 0
+          ? mediaTypesFromDb
+          : fallbackMediaTypes;
+
+      const collectionsList = await window.electronAPI
+        .getCollections()
+        .catch((err: unknown) => {
           console.warn('Error fetching collections:', err);
-        }
-        
-        // Get tags
-        let tagsList: Tag[] = [];
-        try {
-          tagsList = await window.electronAPI.getTags();
-        } catch (err) {
+          return [] as Collection[];
+        });
+
+      const tagsListFromDb = await window.electronAPI
+        .getTags()
+        .catch((err: unknown) => {
           console.warn('Error fetching tags:', err);
-          // Fallback
-          tagsList = [
-            { id: 1, name: 'family' },
-            { id: 2, name: 'vacation' },
-            { id: 3, name: 'birthday' }
-          ];
-        }
-        
-        // Get people
-        let peopleList: Person[] = [];
-        try {
-          peopleList = await window.electronAPI.getPeople();
-        } catch (err) {
+          return [] as Tag[];
+        });
+
+      const tagsList =
+        tagsListFromDb && tagsListFromDb.length > 0
+          ? tagsListFromDb
+          : [
+              { id: 1, name: 'family' },
+              { id: 2, name: 'vacation' },
+              { id: 3, name: 'birthday' }
+            ];
+
+      const peopleListFromDb = await window.electronAPI
+        .getPeople()
+        .catch((err: unknown) => {
           console.warn('Error fetching people:', err);
-          // Fallback
-          peopleList = [
-            { id: 1, name: 'John Smith' },
-            { id: 2, name: 'Jane Smith' },
-            { id: 3, name: 'Alex Johnson' }
-          ];
-        }
-        
-        setMediaTypes([
-          ...mediaTypesList
-        ]);
-        setCollections(collectionsList);
-        setExistingTags(tagsList);
-        setExistingPeople(peopleList);
-      } catch (error) {
-        console.error('Error fetching reference data:', error);
+          return [] as Person[];
+        });
+
+      const peopleList =
+        peopleListFromDb && peopleListFromDb.length > 0
+          ? peopleListFromDb
+          : [
+              { id: 1, name: 'John Smith' },
+              { id: 2, name: 'Jane Smith' },
+              { id: 3, name: 'Alex Johnson' }
+            ];
+
+      if (!isMounted) {
+        return;
       }
-    };
-    
-    fetchReferenceData();
-  }, []);
+
+      setMediaTypes(mediaTypesList);
+      setCollections(collectionsList);
+      setExistingTags(tagsList);
+      setExistingPeople(peopleList);
+    } catch (error) {
+      console.error('Error fetching reference data:', error);
+    }
+  };
+
+  void fetchReferenceData();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
   
   // Handle file selection
   const handleFilesSelected = (files: any[]) => {
@@ -179,7 +177,7 @@ const UploadPage = () => {
         const newSelectedFiles = selectedFiles.filter(f => f !== metadata.file);
         setSelectedFiles(newSelectedFiles);
 
-                if (metadata.file) {
+        if (metadata.file) {
           const key = getFileKey(metadata.file);
           setMetadataDrafts(prev => {
             const { [key]: removedDraft, ...rest } = prev;
@@ -267,7 +265,8 @@ const UploadPage = () => {
                 <h5 className="mb-0">Media Information</h5>
               </Card.Header>
               <Card.Body>
-                <MetadataForm 
+                <MetadataForm
+                  key={currentFile ? getFileKey(currentFile) : 'no-file'}
                   file={currentFile}
                   onSave={handleSaveMetadata}
                   mediaTypes={mediaTypes}

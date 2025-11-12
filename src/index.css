@@ -33,6 +33,39 @@ body {
   display: block; /* Changed from flex */
 }
 
+.app-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #1e3a5f;
+  background-color: #f4f7fb;
+  font-family: "proxima-nova", sans-serif;
+}
+
+.app-loading__message {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.app-loading__spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(30, 58, 95, 0.2);
+  border-top-color: #1e3a5f;
+  border-radius: 50%;
+  animation: app-loading-spin 0.8s linear infinite;
+}
+
+@keyframes app-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;

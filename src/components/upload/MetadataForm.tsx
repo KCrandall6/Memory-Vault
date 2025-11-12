@@ -146,31 +146,31 @@ const MetadataForm = ({
       return;
     }
 
-    const inferredMediaType = draft?.mediaTypeId || determineMediaType(file);
-    const nextFormState = {
-      title: draft?.title ?? file.name.split('.')[0], // Default title is filename without extension
-      description: draft?.description ?? '',
-      captureDate: draft?.captureDate ?? '',
-      location: draft?.location ?? '',
-      mediaTypeId: inferredMediaType,
-      collectionId: draft?.collectionId ?? '',
-      collectionSearchTerm: '',
-      newTag: '',
-      newPerson: ''
-    };
+  const inferredMediaType = draft?.mediaTypeId || determineMediaType(file);
+  const nextFormState = {
+    title: draft?.title ?? file.name.split('.')[0], // Default title is filename without extension
+    description: draft?.description ?? '',
+    captureDate: draft?.captureDate ?? '',
+    location: draft?.location ?? '',
+    mediaTypeId: inferredMediaType,
+    collectionId: draft?.collectionId ?? '',
+    collectionSearchTerm: '',
+    newTag: '',
+    newPerson: ''
+  };
 
-    setFormData(nextFormState);
-    setSelectedTags(draft?.tags ?? []);
-    setSelectedPeople(draft?.people ?? []);
-    setSelectedCollection(draft?.collection ?? null);
-    setShowNewCollectionModal(false);
-    setNewCollectionName('');
-    setNewCollectionDescription('');
+  setFormData(nextFormState);
+  setSelectedTags(draft?.tags ?? []);
+  setSelectedPeople(draft?.people ?? []);
+  setSelectedCollection(draft?.collection ?? null);
+  setShowNewCollectionModal(false);
+  setNewCollectionName('');
+  setNewCollectionDescription('');
 
-    if (!draft) {
-      emitDraftChange(nextFormState, [], [], null);
-    }
-  }, [file]);
+  if (!draft) {
+    emitDraftChange(nextFormState, [], [], null);
+  }
+}, [file, draft]);
 
   // Filter collections based on search term
   useEffect(() => {
