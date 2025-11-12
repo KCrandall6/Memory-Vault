@@ -4,7 +4,7 @@ import { Container, Row, Col, Card } from 'react-bootstrap';
 import FileSelector from '../components/upload/FileSelector';
 import UploadQueue from '../components/upload/UploadQueue';
 import MediaPreview from '../components/upload/MediaPreview';
-import MetadataForm from '../components/upload/MetadataForm';
+import MetadataForm, { MetadataDraft } from '../components/upload/MetadataForm';
 
 // Define interfaces for your data structures
 interface MediaType {
@@ -39,11 +39,36 @@ const UploadPage = () => {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [existingTags, setExistingTags] = useState<Tag[]>([]);
   const [existingPeople, setExistingPeople] = useState<Person[]>([]);
+  const [metadataDrafts, setMetadataDrafts] = useState<Record<string, MetadataDraft>>({});
+
+  const getFileKey = (file: File) => {
+    const maybePath = (file as File & { path?: string }).path;
+    if (typeof maybePath === 'string' && maybePath.length > 0) {
+      return maybePath;
+    }
+    return `${file.name}-${file.lastModified}-${file.size}`;
+  };
 
   // Fetch reference data from database
   useEffect(() => {
     const fetchReferenceData = async () => {
-      try {        
+      try {
+        // Get media types
+        let mediaTypesList: MediaType[] = [];
+        try {
+          mediaTypesList = await window.electronAPI.getMediaTypes();
+        } catch (err) {
+          console.warn('Error fetching media types:', err);
+        }
+
+        if (!mediaTypesList || mediaTypesList.length === 0) {
+          mediaTypesList = [
+            { id: 1, name: 'Image' },
+            { id: 2, name: 'Video' },
+            { id: 3, name: 'Document' },
+            { id: 4, name: 'Audio' }
+          ];
+        }      
         // Get media types
         let mediaTypesList: MediaType[] = [];
         try {
@@ -153,6 +178,15 @@ const UploadPage = () => {
         // Remove the saved file from the queue
         const newSelectedFiles = selectedFiles.filter(f => f !== metadata.file);
         setSelectedFiles(newSelectedFiles);
+
+                if (metadata.file) {
+          const key = getFileKey(metadata.file);
+          setMetadataDrafts(prev => {
+            const { [key]: removedDraft, ...rest } = prev;
+            void removedDraft;
+            return rest;
+          });
+        }
         
         // Select the next file or clear
         if (newSelectedFiles.length > 0) {
@@ -172,6 +206,16 @@ const UploadPage = () => {
       alert(`Error saving file: ${errorMessage}`);
     }
   };
+
+    const handleDraftChange = (file: File, draft: MetadataDraft) => {
+    const key = getFileKey(file);
+    setMetadataDrafts(prev => ({
+      ...prev,
+      [key]: draft
+    }));
+  };
+
+  const currentDraft = currentFile ? metadataDrafts[getFileKey(currentFile)] : undefined;
   
   return (
     <Container fluid className="py-4">
@@ -230,6 +274,11 @@ const UploadPage = () => {
                   collections={collections}
                   existingTags={existingTags}
                   existingPeople={existingPeople}
+                  draft={currentDraft}
+                  onDraftChange={draft => {
+                    if (!currentFile) return;
+                    handleDraftChange(currentFile, draft);
+                  }}
                 />
               </Card.Body>
             </Card>

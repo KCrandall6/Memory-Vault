@@ -19,6 +19,18 @@ interface Collection {
   description?: string;
 }
 
+export interface MetadataDraft {
+  title: string;
+  description: string;
+  captureDate: string;
+  location: string;
+  mediaTypeId: string;
+  collectionId: string;
+  tags: Tag[];
+  people: Person[];
+  collection: Collection | null;
+}
+
 interface MetadataFormProps {
   file: File | null;
   onSave: (metadata: any) => void;
@@ -26,16 +38,20 @@ interface MetadataFormProps {
   collections: any[];
   existingTags?: any[];
   existingPeople?: any[];
+  draft?: MetadataDraft;
+  onDraftChange?: (draft: MetadataDraft) => void;
 }
 
-const MetadataForm = ({ 
-    file, 
-    onSave, 
-    mediaTypes, 
-    collections,
-    existingTags = [],
-    existingPeople = []
-  }: MetadataFormProps) => {
+const MetadataForm = ({
+  file,
+  onSave,
+  mediaTypes,
+  collections,
+  existingTags = [],
+  existingPeople = [],
+  draft,
+  onDraftChange
+}: MetadataFormProps) => {
   
   const [formData, setFormData] = useState({
     title: '',
@@ -59,23 +75,100 @@ const MetadataForm = ({
   const [newCollectionDescription, setNewCollectionDescription] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
 
+    const emitDraftChange = (
+    nextFormData = formData,
+    nextSelectedTags = selectedTags,
+    nextSelectedPeople = selectedPeople,
+    nextSelectedCollection = selectedCollection
+  ) => {
+    if (!onDraftChange) return;
+
+    onDraftChange({
+      title: nextFormData.title,
+      description: nextFormData.description,
+      captureDate: nextFormData.captureDate,
+      location: nextFormData.location,
+      mediaTypeId: nextFormData.mediaTypeId,
+      collectionId: nextFormData.collectionId,
+      tags: nextSelectedTags,
+      people: nextSelectedPeople,
+      collection: nextSelectedCollection
+    });
+  };
+
+  const findMediaTypeIdByName = (name: string) => {
+    const match = mediaTypes.find((type) => {
+      if (!type || typeof type !== 'object') return false;
+      return typeof type.name === 'string' && type.name.toLowerCase() === name;
+    });
+    if (!match) return '';
+    return typeof match.id === 'number' ? match.id.toString() : `${match.id}`;
+  };
+
+  const determineMediaType = (currentFile: File) => {
+    if (!currentFile) return '';
+    const mimeType = currentFile.type || '';
+
+    if (mimeType.startsWith('image/')) {
+      const id = findMediaTypeIdByName('image');
+      if (id) return id;
+    }
+
+    if (mimeType.startsWith('video/')) {
+      const id = findMediaTypeIdByName('video');
+      if (id) return id;
+    }
+
+    if (mimeType.startsWith('audio/')) {
+      const id = findMediaTypeIdByName('audio');
+      if (id) return id;
+    }
+
+    if (mimeType) {
+      const id = findMediaTypeIdByName('document');
+      if (id) return id;
+    }
+
+    if (mediaTypes.length > 0) {
+      const first = mediaTypes[0];
+      if (first && typeof first.id !== 'undefined') {
+        return typeof first.id === 'number' ? first.id.toString() : `${first.id}`;
+      }
+    }
+
+    return '';
+  };
+
+
   // Reset form when file changes
   useEffect(() => {
-    if (file) {
-      setFormData({
-        title: file.name.split('.')[0], // Default title is filename without extension
-        description: '',
-        captureDate: '',
-        location: '',
-        mediaTypeId: determineMediaType(file),
-        collectionId: '',
-        collectionSearchTerm: '',
-        newTag: '',
-        newPerson: ''
-      });
-      setSelectedTags([]);
-      setSelectedPeople([]);
-      setSelectedCollection(null);
+    if (!file) {
+      return;
+    }
+
+    const inferredMediaType = draft?.mediaTypeId || determineMediaType(file);
+    const nextFormState = {
+      title: draft?.title ?? file.name.split('.')[0], // Default title is filename without extension
+      description: draft?.description ?? '',
+      captureDate: draft?.captureDate ?? '',
+      location: draft?.location ?? '',
+      mediaTypeId: inferredMediaType,
+      collectionId: draft?.collectionId ?? '',
+      collectionSearchTerm: '',
+      newTag: '',
+      newPerson: ''
+    };
+
+    setFormData(nextFormState);
+    setSelectedTags(draft?.tags ?? []);
+    setSelectedPeople(draft?.people ?? []);
+    setSelectedCollection(draft?.collection ?? null);
+    setShowNewCollectionModal(false);
+    setNewCollectionName('');
+    setNewCollectionDescription('');
+
+    if (!draft) {
+      emitDraftChange(nextFormState, [], [], null);
     }
   }, [file]);
 
@@ -162,7 +255,12 @@ const MetadataForm = ({
   // Handle form field changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const nextFormData = { ...formData, [name]: value };
+    setFormData(nextFormData);
+
+    if (name !== 'collectionSearchTerm' && name !== 'newTag' && name !== 'newPerson') {
+      emitDraftChange(nextFormData);
+    }
   };
 
   // Handle creating new collection
@@ -177,11 +275,13 @@ const MetadataForm = ({
     };
     
     setSelectedCollection(newCollection);
-    setFormData(prev => ({ 
-      ...prev, 
+    const nextFormData = {
+      ...formData,
       collectionId: newCollection.id.toString(),
       collectionSearchTerm: ''
-    }));
+    };
+    setFormData(nextFormData);
+    emitDraftChange(nextFormData, selectedTags, selectedPeople, newCollection);
     
     // Reset modal state
     setNewCollectionName('');
@@ -200,19 +300,23 @@ const MetadataForm = ({
     
     if (!tagExists) {
       // Check if tag exists in the existing tags
-      const existingTag = existingTags.find(tag => 
+      const existingTag = existingTags.find((tag: Tag) => 
         tag.name.toLowerCase() === formData.newTag.toLowerCase()
       );
       
       if (existingTag) {
-        setSelectedTags(prev => [...prev, existingTag]);
+        const nextTags = [...selectedTags, existingTag];
+        setSelectedTags(nextTags);
+        emitDraftChange(formData, nextTags);
       } else {
         // Create a new tag with a temporary negative ID (will be replaced with a real ID in the backend)
         const newTag = {
           id: -Math.floor(Math.random() * 1000), // temporary negative ID
           name: formData.newTag.trim()
         };
-        setSelectedTags(prev => [...prev, newTag]);
+        const nextTags = [...selectedTags, newTag];
+        setSelectedTags(nextTags);
+        emitDraftChange(formData, nextTags);
       }
     }
     
@@ -229,7 +333,7 @@ const MetadataForm = ({
     if (formData.newPerson.trim() === '') return;
     
     // Check if person already exists in the selected people
-    const personExists = selectedPeople.some(person => 
+    const personExists = selectedPeople.some((person: Person) => 
       person.name.toLowerCase() === formData.newPerson.toLowerCase()
     );
     
@@ -240,14 +344,18 @@ const MetadataForm = ({
       );
       
       if (existingPerson) {
-        setSelectedPeople(prev => [...prev, existingPerson]);
+        const nextPeople = [...selectedPeople, existingPerson];
+        setSelectedPeople(nextPeople);
+        emitDraftChange(formData, selectedTags, nextPeople);
       } else {
         // Create a new person with a temporary negative ID
         const newPerson = {
           id: -Math.floor(Math.random() * 1000), // temporary negative ID
           name: formData.newPerson.trim()
         };
-        setSelectedPeople(prev => [...prev, newPerson]);
+        const nextPeople = [...selectedPeople, newPerson];
+        setSelectedPeople(nextPeople);
+        emitDraftChange(formData, selectedTags, nextPeople);
       }
     }
     
@@ -256,19 +364,24 @@ const MetadataForm = ({
 
   // Remove a person
   const handleRemovePerson = (personId: number) => {
-    setSelectedPeople(prev => prev.filter(person => person.id !== personId));
+    const nextPeople = selectedPeople.filter(person => person.id !== personId);
+    setSelectedPeople(nextPeople);
+    emitDraftChange(formData, selectedTags, nextPeople);
   };
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    const payload = {
       ...formData,
       tags: selectedTags,
       people: selectedPeople,
       collection: selectedCollection,
       file
-    });
+    };
+    };
+    emitDraftChange(formData, selectedTags, selectedPeople, selectedCollection);
+    onSave(payload);
   };
 
   if (!file) {
@@ -340,8 +453,8 @@ const MetadataForm = ({
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Select...</option>
-                {mediaTypes.map(type => (
+                <option value="" disabled hidden>Select...</option>
+                {mediaTypes.map((type: any) => (
                   <option key={type.id} value={type.id}>{type.name}</option>
                 ))}
               </Form.Select>
@@ -365,7 +478,9 @@ const MetadataForm = ({
                 size="sm"
                 onClick={() => {
                   setSelectedCollection(null);
-                  setFormData(prev => ({ ...prev, collectionId: '' }));
+                  const nextFormData = { ...formData, collectionId: '' };
+                  setFormData(nextFormData);
+                  emitDraftChange(nextFormData, selectedTags, selectedPeople, null);
                 }}
               >
                 ×
@@ -397,12 +512,14 @@ const MetadataForm = ({
                         key={collection.id} 
                         className="p-2"
                         onClick={() => {
-                          setSelectedCollection(collection);
-                          setFormData(prev => ({ 
-                            ...prev, 
+                          const nextFormData = {
+                            ...formData,
                             collectionId: collection.id.toString(),
                             collectionSearchTerm: ''
-                          }));
+                          };
+                          setSelectedCollection(collection);
+                          setFormData(nextFormData);
+                          emitDraftChange(nextFormData, selectedTags, selectedPeople, collection);
                         }}
                         style={{ cursor: 'pointer' }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
@@ -446,7 +563,7 @@ const MetadataForm = ({
               list="existingPeopleList"
             />
             <datalist id="existingPeopleList">
-              {existingPeople.map(person => (
+              {existingPeople.map((person: Person) => (
                 <option key={person.id} value={person.name} />
               ))}
             </datalist>
@@ -492,7 +609,7 @@ const MetadataForm = ({
               list="existingTagsList"
             />
             <datalist id="existingTagsList">
-              {existingTags.map(tag => (
+              {existingTags.map((tag: Tag) => (
                 <option key={tag.id} value={tag.name} />
               ))}
             </datalist>
