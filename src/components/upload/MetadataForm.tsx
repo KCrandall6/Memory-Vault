@@ -92,12 +92,72 @@ const MetadataForm = ({
   }, [formData.collectionSearchTerm, collections]);
 
   // Determine media type from file
-  const determineMediaType = (file: File) => {
-    if (file.type.startsWith('image/')) return '1'; // Image
-    if (file.type.startsWith('video/')) return '2'; // Video
-    if (file.type.startsWith('audio/')) return '4'; // Audio
-    return '3'; // Document
+  const findMediaTypeIdByName = (name: string) => {
+    const match = mediaTypes.find(type => {
+      if (!type || typeof type !== 'object') return false;
+      return typeof type.name === 'string' && type.name.toLowerCase() === name;
+    });
+    if (!match) return '';
+      return typeof match.id === 'number' ? match.id.toString() : `${match.id}`;
   };
+
+  const determineMediaType = (file: File) => {
+    if (!file) return '';
+    const mimeType = file.type || '';
+
+    if (mimeType.startsWith('image/')) {
+      const id = findMediaTypeIdByName('image');
+      if (id) return id;
+    }
+
+    if (mimeType.startsWith('video/')) {
+      const id = findMediaTypeIdByName('video');
+      if (id) return id;
+    }
+
+    if (mimeType.startsWith('audio/')) {
+      const id = findMediaTypeIdByName('audio');
+      if (id) return id;
+    }
+
+    if (mimeType) {
+      const id = findMediaTypeIdByName('document');
+      if (id) return id;
+    }
+
+    if (mediaTypes.length > 0) {
+      const first = mediaTypes[0];
+      if (first && typeof first.id !== 'undefined') {
+        return typeof first.id === 'number' ? first.id.toString() : `${first.id}`;
+      }
+    }
+    return '';
+  };
+
+  useEffect(() => {
+    if (!file || mediaTypes.length === 0) {
+      return;
+    }
+
+    setFormData(prev => {
+      if (prev.mediaTypeId) {
+        const stillExists = mediaTypes.some(type => `${type.id}` === prev.mediaTypeId);
+        if (stillExists) {
+          return prev;
+        }
+      }
+
+      const inferred = determineMediaType(file);
+      if (!inferred) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        mediaTypeId: inferred
+      };
+    });
+  }, [mediaTypes, file]);
 
   // Handle form field changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

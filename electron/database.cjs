@@ -3,14 +3,37 @@ const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
+const storageRoot = require('./storage-root.cjs');
+
+const {
+  ensureStorageRoot,
+  ensureArchiveDirectory,
+  getDatabasePath
+} = storageRoot;
+
+function resolveSchemaPath() {
+  const candidatePaths = [
+    path.join(process.cwd(), 'resources', 'create-database.sql'),
+    path.join(app.getAppPath(), 'resources', 'create-database.sql'),
+    path.join(process.resourcesPath || '', 'create-database.sql')
+  ];
+
+  for (const candidate of candidatePaths) {
+    if (candidate && fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
 
 // Initialize database connection
 let db;
 try {
-  // Get database path - adjust to use app data folder
-  const appDataPath = app.getPath('userData');
-  const dbDir = path.join(appDataPath, 'MemoryVault', 'Database');
-  const dbPath = path.join(dbDir, 'memory-vault.db');
+  ensureStorageRoot();
+  ensureArchiveDirectory();
+  const dbPath = getDatabasePath();
+  const dbDir = path.dirname(dbPath);
   
   console.log(`Database path: ${dbPath}`);
   
@@ -24,11 +47,13 @@ try {
   db.pragma('foreign_keys = ON');
   
   // Initialize the database with required tables if they don't exist
-  const sqlPath = path.join(process.cwd(), 'resources', 'create-database.sql');
-  if (fs.existsSync(sqlPath)) {
+  const sqlPath = resolveSchemaPath();
+  if (sqlPath) {
     const sqlScript = fs.readFileSync(sqlPath, 'utf8');
     db.exec(sqlScript);
     console.log('Database schema initialized');
+  } else {
+    console.warn('Database schema file not found. Skipping initialization script.');
   }
   
   // Initialize with default values if tables are empty

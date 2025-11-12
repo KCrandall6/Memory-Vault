@@ -44,6 +44,22 @@ const UploadPage = () => {
   useEffect(() => {
     const fetchReferenceData = async () => {
       try {        
+        // Get media types
+        let mediaTypesList: MediaType[] = [];
+        try {
+          mediaTypesList = await window.electronAPI.getMediaTypes();
+        } catch (err) {
+          console.warn('Error fetching media types:', err);
+        }
+
+        if (!mediaTypesList || mediaTypesList.length === 0) {
+          mediaTypesList = [
+            { id: 1, name: 'Image' },
+            { id: 2, name: 'Video' },
+            { id: 3, name: 'Document' },
+            { id: 4, name: 'Audio' }
+          ];
+        }
         // Get collections
         let collectionsList: Collection[] = [];
         try {
@@ -81,9 +97,7 @@ const UploadPage = () => {
         }
         
         setMediaTypes([
-          { id: 'photo', name: 'Photo' },
-          { id: 'video', name: 'Video' },
-          { id: 'document', name: 'Document' }
+          ...mediaTypesList
         ]);
         setCollections(collectionsList);
         setExistingTags(tagsList);

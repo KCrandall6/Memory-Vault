@@ -1,22 +1,24 @@
 // electron/file-handler.js - cleaned version
-import { app } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
-import { existsSync } from 'fs';
+import storageRoot from './storage-root.cjs';
+
+const {
+  ensureStorageRoot,
+  ensureArchiveDirectory,
+  ARCHIVE_FOLDER_NAME
+} = storageRoot;
 
 // Define paths for media storage
 const getAppDataPath = () => {
-  // Store files in the app's data directory
-  const appDataPath = path.join(app.getPath('userData'), 'MemoryVault');
-  return appDataPath;
+  return ensureStorageRoot();
 };
 
 // Create required directories
 async function ensureDirectoriesExist() {
-  const mediaDir = path.join(getAppDataPath(), 'Media');
-  
+ 
   try {
-    await fs.mkdir(mediaDir, { recursive: true });
+    const mediaDir = ensureArchiveDirectory();
     return { mediaDir };
   } catch (error) {
     console.error('Error creating directories:', error);
@@ -47,7 +49,7 @@ async function saveMediaFile(sourcePath, filename) {
     return {
       filePath: destinationPath,
       fileName: uniqueFilename,
-      relativePath: path.join('Media', uniqueFilename)
+      relativePath: path.join(ARCHIVE_FOLDER_NAME, uniqueFilename)
     };
   } catch (error) {
     console.error('Error saving media file:', error);

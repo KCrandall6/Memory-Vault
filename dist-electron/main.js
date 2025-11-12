@@ -1,29 +1,76 @@
-import require$$0, { app as app$1, BrowserWindow, ipcMain, dialog } from "electron";
+import require$$0, { app as app$2, BrowserWindow, ipcMain, dialog } from "electron";
 import { fileURLToPath } from "url";
-import path$1 from "path";
-import fs$1 from "fs/promises";
+import path$2 from "path";
+import fs$2 from "fs/promises";
 import require$$2 from "fs";
 import require$$3 from "better-sqlite3";
+function getDefaultExportFromCjs(x) {
+  return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
+}
+const { app: app$1 } = require$$0;
+const path$1 = path$2;
+const fs$1 = require$$2;
+const ARCHIVE_FOLDER_NAME$1 = "Memory Vault Archive";
+const DATABASE_FILENAME = "memoryvault.db";
+function resolveStorageRoot() {
+  if (app$1.isPackaged) {
+    return path$1.dirname(process.execPath);
+  }
+  return path$1.join(app$1.getPath("userData"), "MemoryVault");
+}
+function ensureStorageRoot$2() {
+  const root = resolveStorageRoot();
+  if (!fs$1.existsSync(root)) {
+    fs$1.mkdirSync(root, { recursive: true });
+  }
+  return root;
+}
+function ensureArchiveDirectory$3() {
+  const root = ensureStorageRoot$2();
+  const archiveDir = path$1.join(root, ARCHIVE_FOLDER_NAME$1);
+  if (!fs$1.existsSync(archiveDir)) {
+    fs$1.mkdirSync(archiveDir, { recursive: true });
+  }
+  return archiveDir;
+}
+function getDatabasePath$2() {
+  const root = ensureStorageRoot$2();
+  return path$1.join(root, DATABASE_FILENAME);
+}
+var storageRoot$1 = {
+  ARCHIVE_FOLDER_NAME: ARCHIVE_FOLDER_NAME$1,
+  DATABASE_FILENAME,
+  resolveStorageRoot,
+  ensureStorageRoot: ensureStorageRoot$2,
+  ensureArchiveDirectory: ensureArchiveDirectory$3,
+  getDatabasePath: getDatabasePath$2
+};
+const storageRoot$2 = /* @__PURE__ */ getDefaultExportFromCjs(storageRoot$1);
+const {
+  ensureArchiveDirectory: ensureArchiveDirectory$2,
+  getDatabasePath: getDatabasePath$1
+} = storageRoot$2;
 const currentFilePath$1 = import.meta.url;
-const currentDir$1 = path$1.dirname(fileURLToPath(currentFilePath$1));
+const currentDir$1 = path$2.dirname(fileURLToPath(currentFilePath$1));
 async function testDatabase() {
   try {
     console.log("Process cwd:", process.cwd());
     console.log("Current directory:", currentDir$1);
     const SQLite3Module = await import("better-sqlite3");
     const SQLite3 = SQLite3Module.default;
-    const dbPath = path$1.resolve(currentDir$1, "..", "..", "..", "Database", "memory-vault.db");
+    ensureArchiveDirectory$2();
+    const dbPath = getDatabasePath$1();
     console.log(`Testing database at: ${dbPath}`);
     try {
-      const stats = await fs$1.stat(dbPath);
+      const stats = await fs$2.stat(dbPath);
       console.log("Database file exists, size:", stats.size);
     } catch (err) {
       console.log("Database file does not exist, will create it");
       try {
-        await fs$1.mkdir(path$1.dirname(dbPath), { recursive: true });
+        await fs$2.mkdir(path$2.dirname(dbPath), { recursive: true });
         console.log("Created database directory");
       } catch (err2) {
-        if (err2.code !== "EEXIST") {
+        if (err2 instanceof Error && "code" in err2 && err2.code !== "EEXIST") {
           console.error("Failed to create database directory:", err2);
           throw err2;
         }
@@ -38,9 +85,19 @@ async function testDatabase() {
       if (result.count === 0) {
         console.log("Database is empty, creating tables...");
         try {
-          const sqlPath = path$1.resolve(currentDir$1, "..", "..", "resources", "create-database.sql");
-          console.log("Looking for SQL file at:", sqlPath);
-          const sql = await fs$1.readFile(sqlPath, "utf8");
+          const resourcesPath = process.resourcesPath ?? "";
+          const candidatePaths = [
+            path$2.resolve(currentDir$1, "..", "resources", "create-database.sql"),
+            path$2.resolve(process.cwd(), "resources", "create-database.sql"),
+            resourcesPath ? path$2.join(resourcesPath, "create-database.sql") : ""
+          ];
+          const existingPath = await findExistingPath(candidatePaths);
+          if (!existingPath) {
+            console.warn("Could not locate create-database.sql");
+            return false;
+          }
+          console.log("Loading SQL file from:", existingPath);
+          const sql = await fs$2.readFile(existingPath, "utf8");
           console.log("SQL file loaded, length:", sql.length);
           db2.exec(sql);
           console.log("Database tables created successfully");
@@ -57,29 +114,63 @@ async function testDatabase() {
     return false;
   }
 }
-function getDefaultExportFromCjs(x) {
-  return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
+async function findExistingPath(paths) {
+  for (const candidate of paths) {
+    if (!candidate) {
+      continue;
+    }
+    try {
+      const stats = await fs$2.stat(candidate);
+      if (stats.isFile()) {
+        return candidate;
+      }
+    } catch (err) {
+    }
+  }
+  return null;
 }
 const { app } = require$$0;
-const path = path$1;
+const path = path$2;
 const fs = require$$2;
 const Database = require$$3;
+const storageRoot = storageRoot$1;
+const {
+  ensureStorageRoot: ensureStorageRoot$1,
+  ensureArchiveDirectory: ensureArchiveDirectory$1,
+  getDatabasePath
+} = storageRoot;
+function resolveSchemaPath() {
+  const candidatePaths = [
+    path.join(process.cwd(), "resources", "create-database.sql"),
+    path.join(app.getAppPath(), "resources", "create-database.sql"),
+    path.join(process.resourcesPath || "", "create-database.sql")
+  ];
+  for (const candidate of candidatePaths) {
+    if (candidate && fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
 let db;
 try {
-  const appDataPath = app.getPath("userData");
-  const dbDir = path.join(appDataPath, "MemoryVault", "Database");
-  const dbPath = path.join(dbDir, "memory-vault.db");
+  ensureStorageRoot$1();
+  ensureArchiveDirectory$1();
+  const dbPath = getDatabasePath();
+  const dbDir = path.dirname(dbPath);
   console.log(`Database path: ${dbPath}`);
   if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
   }
   db = new Database(dbPath);
   db.pragma("foreign_keys = ON");
-  const sqlPath = path.join(process.cwd(), "resources", "create-database.sql");
-  if (fs.existsSync(sqlPath)) {
+  const sqlPath = resolveSchemaPath();
+  if (sqlPath) {
     const sqlScript = fs.readFileSync(sqlPath, "utf8");
     db.exec(sqlScript);
     console.log("Database schema initialized");
+  } else {
+    console.warn("Database schema file not found. Skipping initialization script.");
   }
   initializeDefaultValues();
   console.log("Database connection established successfully");
@@ -301,14 +392,14 @@ var database = {
   addCollection
 };
 const dbOperations = /* @__PURE__ */ getDefaultExportFromCjs(database);
-const getAppDataPath = () => {
-  const appDataPath = path$1.join(app$1.getPath("userData"), "MemoryVault");
-  return appDataPath;
-};
+const {
+  ensureStorageRoot,
+  ensureArchiveDirectory,
+  ARCHIVE_FOLDER_NAME
+} = storageRoot$2;
 async function ensureDirectoriesExist() {
-  const mediaDir = path$1.join(getAppDataPath(), "Media");
   try {
-    await fs$1.mkdir(mediaDir, { recursive: true });
+    const mediaDir = ensureArchiveDirectory();
     return { mediaDir };
   } catch (error) {
     console.error("Error creating directories:", error);
@@ -318,20 +409,20 @@ async function ensureDirectoriesExist() {
 function generateUniqueFilename(originalFilename) {
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 8);
-  const ext = path$1.extname(originalFilename);
-  const name = path$1.basename(originalFilename, ext);
+  const ext = path$2.extname(originalFilename);
+  const name = path$2.basename(originalFilename, ext);
   return `${name}_${timestamp}_${randomString}${ext}`;
 }
 async function saveMediaFile(sourcePath, filename) {
   try {
     const { mediaDir } = await ensureDirectoriesExist();
     const uniqueFilename = generateUniqueFilename(filename);
-    const destinationPath = path$1.join(mediaDir, uniqueFilename);
-    await fs$1.copyFile(sourcePath, destinationPath);
+    const destinationPath = path$2.join(mediaDir, uniqueFilename);
+    await fs$2.copyFile(sourcePath, destinationPath);
     return {
       filePath: destinationPath,
       fileName: uniqueFilename,
-      relativePath: path$1.join("Media", uniqueFilename)
+      relativePath: path$2.join(ARCHIVE_FOLDER_NAME, uniqueFilename)
     };
   } catch (error) {
     console.error("Error saving media file:", error);
@@ -352,12 +443,12 @@ async function processMediaFile(filePath, fileName) {
   }
 }
 const currentFilePath = import.meta.url;
-const currentDir = path$1.dirname(fileURLToPath(currentFilePath));
-process.env.APP_ROOT = path$1.join(currentDir, "..");
+const currentDir = path$2.dirname(fileURLToPath(currentFilePath));
+process.env.APP_ROOT = path$2.join(currentDir, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path$1.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path$1.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$1.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+const MAIN_DIST = path$2.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path$2.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$2.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 function setupIpcHandlers() {
   ipcMain.handle("select-files", async () => {
     console.log("Showing file dialog...");
@@ -371,12 +462,12 @@ function setupIpcHandlers() {
       return [];
     }
     return Promise.all(filePaths.map(async (filePath) => {
-      const stats = await fs$1.stat(filePath);
+      const stats = await fs$2.stat(filePath);
       return {
         path: filePath,
-        name: path$1.basename(filePath),
+        name: path$2.basename(filePath),
         size: stats.size,
-        type: path$1.extname(filePath).toLowerCase(),
+        type: path$2.extname(filePath).toLowerCase(),
         lastModified: stats.mtime.getTime()
       };
     }));
@@ -384,8 +475,8 @@ function setupIpcHandlers() {
   ipcMain.handle("get-file-preview", async (_, filePath) => {
     try {
       console.log("Generating preview for:", filePath);
-      const data = await fs$1.readFile(filePath);
-      const ext = path$1.extname(filePath).toLowerCase().substring(1);
+      const data = await fs$2.readFile(filePath);
+      const ext = path$2.extname(filePath).toLowerCase().substring(1);
       const base64 = data.toString("base64");
       let mimeType = "application/octet-stream";
       if (["jpg", "jpeg"].includes(ext)) mimeType = "image/jpeg";
@@ -462,7 +553,7 @@ function setupIpcHandlers() {
   ipcMain.handle("save-media", async (_, data) => {
     try {
       console.log("Saving media:", data);
-      const processedFile = await processMediaFile(data.filePath, path$1.basename(data.filePath));
+      const processedFile = await processMediaFile(data.filePath, path$2.basename(data.filePath));
       const mediaData = {
         file_name: processedFile.fileName,
         file_path: processedFile.relativePath,
@@ -510,9 +601,9 @@ function setupIpcHandlers() {
 let win;
 function createWindow() {
   win = new BrowserWindow({
-    icon: path$1.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    icon: path$2.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
-      preload: path$1.join(currentDir, "preload.js"),
+      preload: path$2.join(currentDir, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false
     },
@@ -528,21 +619,21 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path$1.join(RENDERER_DIST, "index.html"));
+    win.loadFile(path$2.join(RENDERER_DIST, "index.html"));
   }
 }
-app$1.on("window-all-closed", () => {
+app$2.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    app$1.quit();
+    app$2.quit();
     win = null;
   }
 });
-app$1.on("activate", () => {
+app$2.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
-app$1.whenReady().then(async () => {
+app$2.whenReady().then(async () => {
   try {
     const dbTestResult = await testDatabase();
     console.log("Database test result:", dbTestResult);

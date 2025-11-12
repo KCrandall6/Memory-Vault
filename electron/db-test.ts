@@ -1,8 +1,13 @@
 // electron/db-test.ts
-import { app } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
+import storageRoot from './storage-root.cjs';
+
+const {
+  ensureArchiveDirectory,
+  getDatabasePath
+} = storageRoot;
 
 // ES module compatible dirname (replaces __dirname)
 const currentFilePath = import.meta.url;
@@ -19,12 +24,9 @@ export async function testDatabase() {
     const SQLite3Module = await import('better-sqlite3');
     const SQLite3 = SQLite3Module.default;
     
-    // Define database path - try multiple approaches for reliability
-    // First approach: relative to cwd
-    // const dbPath = path.resolve(process.cwd(), '..', 'Database', 'memory-vault.db');
-    
-    // Second approach: more explicit path based on the file structure
-    const dbPath = path.resolve(currentDir, '..', '..', '..', 'Database', 'memory-vault.db');
+    // Ensure archive structure exists and get database path
+    ensureArchiveDirectory();
+    const dbPath = getDatabasePath();
     
     console.log(`Testing database at: ${dbPath}`);
     
@@ -40,7 +42,7 @@ export async function testDatabase() {
         await fs.mkdir(path.dirname(dbPath), { recursive: true });
         console.log('Created database directory');
       } catch (err) {
-        if (err.code !== 'EEXIST') {
+        if (err instanceof Error && 'code' in err && err.code !== 'EEXIST') {
           console.error('Failed to create database directory:', err);
           throw err;
         }
@@ -64,10 +66,23 @@ export async function testDatabase() {
         console.log('Database is empty, creating tables...');
         try {
           // Read SQL file
-          const sqlPath = path.resolve(currentDir, '..', '..', 'resources', 'create-database.sql');
-          console.log('Looking for SQL file at:', sqlPath);
-          
-          const sql = await fs.readFile(sqlPath, 'utf8');
+          const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ?? '';
+          const candidatePaths = [
+            path.resolve(currentDir, '..', 'resources', 'create-database.sql'),
+            path.resolve(process.cwd(), 'resources', 'create-database.sql'),
+            resourcesPath ? path.join(resourcesPath, 'create-database.sql') : ''
+          ];
+
+          const existingPath = await findExistingPath(candidatePaths);
+
+          if (!existingPath) {
+            console.warn('Could not locate create-database.sql');
+            return false;
+          }
+
+          console.log('Loading SQL file from:', existingPath);
+
+          const sql = await fs.readFile(existingPath, 'utf8');
           console.log('SQL file loaded, length:', sql.length);
           
           // Execute SQL to create tables
@@ -86,4 +101,20 @@ export async function testDatabase() {
     console.error('Database test failed:', error);
     return false;
   }
+}
+async function findExistingPath(paths: string[]): Promise<string | null> {
+  for (const candidate of paths) {
+    if (!candidate) {
+      continue;
+    }
+    try {
+      const stats = await fs.stat(candidate);
+      if (stats.isFile()) {
+        return candidate;
+      }
+    } catch (err) {
+      // Ignore missing files
+    }
+  }
+  return null;
 }
