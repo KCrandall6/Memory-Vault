@@ -175,6 +175,7 @@ const UploadPage = () => {
           captureDate: metadata.captureDate,
           location: metadata.location,
           collectionId: metadata.collectionId,
+          collection: metadata.collection ?? null,
           tags: metadata.tags,
           people: metadata.people
         }
