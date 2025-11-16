@@ -1,6 +1,6 @@
 // src/pages/UploadPage.tsx
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Card } from 'react-bootstrap';
+import { Alert, Container, Row, Col, Card } from 'react-bootstrap';
 import FileSelector from '../components/upload/FileSelector';
 import UploadQueue from '../components/upload/UploadQueue';
 import MediaPreview from '../components/upload/MediaPreview';
@@ -39,6 +39,9 @@ const UploadPage = () => {
   const [existingTags, setExistingTags] = useState<Tag[]>([]);
   const [existingPeople, setExistingPeople] = useState<Person[]>([]);
   const [metadataDrafts, setMetadataDrafts] = useState<Record<string, MetadataDraft>>({});
+  const [statusMessage, setStatusMessage] = useState<
+    { variant: 'success' | 'danger'; text: string } | null
+  >(null);
 
   const getFileKey = (file: File) => {
     const maybePath = (file as File & { path?: string }).path;
@@ -132,6 +135,13 @@ const UploadPage = () => {
     };
   }, []);
   
+  useEffect(() => {
+    if (!statusMessage) return;
+    const timeout = setTimeout(() => setStatusMessage(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [statusMessage]);
+
+
   // Handle file selection
   const handleFilesSelected = (files: File[]) => {
     console.log('Files selected:', files);
@@ -195,16 +205,21 @@ const UploadPage = () => {
         } else {
           setCurrentFile(null);
         }
-        
-        // Show success message
-        alert(`${metadata.file.name} saved successfully!`);
+
+        setStatusMessage({
+          variant: 'success',
+          text: `${metadata.file.name} saved successfully!`
+        });
       } else {
         throw new Error(result.error || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Error saving file:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      alert(`Error saving file: ${errorMessage}`);
+      setStatusMessage({
+        variant: 'danger',
+        text: `Error saving file: ${errorMessage}`
+      });
     }
   };
 
@@ -221,6 +236,17 @@ const UploadPage = () => {
   return (
     <Container fluid className="py-4">
       <h1 className="mb-4">Upload & Index Media</h1>
+
+      {statusMessage && (
+        <Alert
+          variant={statusMessage.variant}
+          onClose={() => setStatusMessage(null)}
+          dismissible
+          className="mb-4"
+        >
+          {statusMessage.text}
+        </Alert>
+      )}
       
       {selectedFiles.length === 0 ? (
         // Initial state: just the file selector
