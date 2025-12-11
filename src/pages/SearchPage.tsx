@@ -295,6 +295,9 @@ const SearchPage = () => {
         media={selected}
         onClose={() => setShowDetails(false)}
         onSaveDetails={handleSaveDetails}
+        availableCollections={mockCollections}
+        availablePeople={mockPeople}
+        availableTags={mockTags}
       />
     </Container>
   );

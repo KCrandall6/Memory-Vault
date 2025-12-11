@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Badge, Button, Col, Modal, Row } from 'react-bootstrap';
 import EditDetailsModal, { EditableDetails } from './EditDetailsModal';
+import { ReferenceOption } from './SearchBar';
 
 export type DetailedMedia = {
   id: string;
@@ -20,6 +21,9 @@ type DetailsModalProps = {
   media?: DetailedMedia;
   onClose: () => void;
   onSaveDetails: (updated: DetailedMedia) => void;
+  availableCollections: ReferenceOption[];
+  availablePeople: ReferenceOption[];
+  availableTags: ReferenceOption[];
 };
 
 const mediaTypeIcon: Record<string, string> = {
@@ -29,7 +33,15 @@ const mediaTypeIcon: Record<string, string> = {
   audio: 'bi-music-note',
 };
 
-const DetailsModal = ({ show, media, onClose, onSaveDetails }: DetailsModalProps) => {
+const DetailsModal = ({
+  show,
+  media,
+  onClose,
+  onSaveDetails,
+  availableCollections,
+  availablePeople,
+  availableTags,
+}: DetailsModalProps) => {
   const [showPreview, setShowPreview] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -182,6 +194,9 @@ const DetailsModal = ({ show, media, onClose, onSaveDetails }: DetailsModalProps
           media={media}
           onClose={() => setEditing(false)}
           onSave={handleSave}
+          availableCollections={availableCollections}
+          availablePeople={availablePeople}
+          availableTags={availableTags}
         />
       )}
     </>
