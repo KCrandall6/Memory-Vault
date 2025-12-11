@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Container, Row, Col, Card, Badge, Button } from 'react-bootstrap';
-import FiltersBar from '../components/search/FiltersBar';
+import FiltersBar from '../components/search/FilterBar';
 import SearchBar, { ReferenceOption, SearchQuery } from '../components/search/SearchBar';
 
 const initialQuery: SearchQuery = {
@@ -47,12 +47,14 @@ const mockTags: ReferenceOption[] = [
 type SearchResult = {
   id: string;
   title: string;
-  thumbnail: string;
+  thumbnail?: string;
   captureDate: string;
   collection?: string;
   peopleCount: number;
   location?: string;
   mediaType: string;
+  summary?: string;
+  tags?: string[];
 };
 
 const mockResults: SearchResult[] = [
@@ -65,6 +67,7 @@ const mockResults: SearchResult[] = [
     peopleCount: 4,
     location: 'Central Park',
     mediaType: 'image',
+    tags: ['family', 'outdoors'],
   },
   {
     id: 'm2',
@@ -75,6 +78,7 @@ const mockResults: SearchResult[] = [
     peopleCount: 3,
     location: 'Madison',
     mediaType: 'image',
+    summary: 'Ceremony photos and program',
   },
   {
     id: 'm3',
@@ -85,28 +89,44 @@ const mockResults: SearchResult[] = [
     peopleCount: 2,
     location: 'Switzerland',
     mediaType: 'image',
+    summary: 'Trail snapshots and summit panorama',
   },
   {
     id: 'm4',
     title: 'Project brief PDF',
-    thumbnail: 'https://via.placeholder.com/400x250?text=PDF',
+    thumbnail: '',
     captureDate: '2019-11-02',
     collection: 'Work',
     peopleCount: 1,
     location: 'Remote',
     mediaType: 'document',
+    summary: 'Requirements document for Q4 initiative',
+    tags: ['work', 'planning'],
   },
   {
     id: 'm5',
     title: 'Interview audio',
-    thumbnail: 'https://via.placeholder.com/400x250?text=Audio',
+    thumbnail: '',
     captureDate: '2015-04-10',
     collection: 'Family',
     peopleCount: 2,
     location: 'Phone',
     mediaType: 'audio',
+    summary: 'Grandma shares family stories',
   },
 ];
+
+const mediaTypeIcon: Record<string, string> = {
+  image: 'bi-image',
+  video: 'bi-camera-video',
+  document: 'bi-file-earmark-text',
+  audio: 'bi-music-note',
+};
+
+const getThumbnail = (result: SearchResult) => {
+  if (result.thumbnail) return result.thumbnail;
+  return undefined;
+};
 
 const SearchPage = () => {
   const [query, setQuery] = useState<SearchQuery>(initialQuery);
@@ -182,46 +202,66 @@ const SearchPage = () => {
           {hasResults ? (
             <Card className="shadow-sm">
               <Card.Body className="p-0">
-                {results.map((result) => (
-                  <div
-                    key={result.id}
-                    className="d-flex align-items-stretch border-bottom px-3 py-3 gap-3 flex-wrap flex-md-nowrap"
-                  >
-                    <div className="search-result-thumb flex-shrink-0">
-                      <img
-                        src={result.thumbnail}
-                        alt={result.title}
-                        className="img-fluid rounded"
-                        style={{ minWidth: '140px', maxWidth: '180px', objectFit: 'cover' }}
-                      />
-                    </div>
-                    <div className="flex-grow-1">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div>
-                          <h5 className="mb-1">{result.title}</h5>
-                          <div className="text-muted small mb-2 d-flex flex-wrap gap-2 align-items-center">
-                            <span>{result.captureDate}</span>
-                            {result.location && <span>• {result.location}</span>}
-                            {result.collection && (
-                              <Badge bg="light" text="dark">
-                                {result.collection}
-                              </Badge>
-                            )}
-                            <Badge bg="secondary">{result.peopleCount} people</Badge>
-                            <Badge bg="light" text="primary" className="border border-primary">
-                              {result.mediaType}
-                            </Badge>
-                          </div>
+                {results.map((result) => {
+                  const icon = mediaTypeIcon[result.mediaType] ?? 'bi-file-earmark';
+                  return (
+                    <div
+                      key={result.id}
+                      className="d-flex align-items-stretch border-bottom px-3 py-3 gap-3 flex-wrap flex-md-nowrap"
+                    >
+                      <div
+                        className="search-result-thumb flex-shrink-0 d-flex align-items-center justify-content-center bg-light position-relative rounded"
+                        style={{ minWidth: '140px', maxWidth: '180px', height: '120px' }}
+                      >
+                        {getThumbnail(result) ? (
+                          <img
+                            src={getThumbnail(result)}
+                            alt={result.title}
+                            className="img-fluid rounded h-100 w-100"
+                            style={{ objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <i className={`bi ${icon} display-6 text-muted`}></i>
+                        )}
+                        <div className="position-absolute bottom-0 start-0 m-2">
+                          <Badge bg="dark" className="text-uppercase small">{result.mediaType}</Badge>
                         </div>
-                        <div>
-                          <Button variant="outline-primary" size="sm">
-                            View details
-                          </Button>
+                      </div>
+                      <div className="flex-grow-1">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div>
+                            <h5 className="mb-1">{result.title}</h5>
+                            {result.summary && <div className="text-muted small mb-2">{result.summary}</div>}
+                            <div className="text-muted small mb-2 d-flex flex-wrap gap-2 align-items-center">
+                              <span>{result.captureDate}</span>
+                              {result.location && <span>• {result.location}</span>}
+                              {result.collection && (
+                                <Badge bg="light" text="dark">
+                                  {result.collection}
+                                </Badge>
+                              )}
+                              <Badge bg="secondary">{result.peopleCount} people</Badge>
+                              {result.tags && result.tags.length > 0 && (
+                                <span className="d-flex flex-wrap gap-1">
+                                  {result.tags.slice(0, 3).map((tag) => (
+                                    <Badge key={tag} bg="light" text="primary" className="border border-primary">
+                                      #{tag}
+                                    </Badge>
+                                  ))}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <Button variant="outline-primary" size="sm">
+                              View details
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </Card.Body>
             </Card>
           ) : (

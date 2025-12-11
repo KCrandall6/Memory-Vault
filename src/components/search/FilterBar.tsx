@@ -79,7 +79,7 @@ title: string;
   };
 
   return (
-    <Accordion className="mt-3" defaultActiveKey="filters">
+    <Accordion className="mt-3">
       <Accordion.Item eventKey="filters">
         <Accordion.Header>
           <div className="fw-semibold text-uppercase text-muted small">Filters</div>
