@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Container, Row, Col, Card, Badge, Button } from 'react-bootstrap';
 import FiltersBar from '../components/search/FilterBar';
 import SearchBar, { ReferenceOption, SearchQuery } from '../components/search/SearchBar';
+import DetailsModal, { DetailedMedia } from '../components/search/DetailsModal';
 
 const initialQuery: SearchQuery = {
   text: '',
@@ -44,17 +45,9 @@ const mockTags: ReferenceOption[] = [
   { id: 't4', name: 'Travel' },
 ];
 
-type SearchResult = {
-  id: string;
-  title: string;
-  thumbnail?: string;
-  captureDate: string;
-  collection?: string;
+type SearchResult = DetailedMedia & {
   peopleCount: number;
-  location?: string;
-  mediaType: string;
   summary?: string;
-  tags?: string[];
 };
 
 const mockResults: SearchResult[] = [
@@ -67,7 +60,9 @@ const mockResults: SearchResult[] = [
     peopleCount: 4,
     location: 'Central Park',
     mediaType: 'image',
+    description: 'Sunny afternoon picnic with the family and cousins.',
     tags: ['family', 'outdoors'],
+    people: ['Alice', 'Bob', 'Charlie', 'Dana'],
   },
   {
     id: 'm2',
@@ -79,6 +74,9 @@ const mockResults: SearchResult[] = [
     location: 'Madison',
     mediaType: 'image',
     summary: 'Ceremony photos and program',
+    description: 'Commencement ceremony with friends and the graduation program PDF.',
+    people: ['Erin', 'Frank', 'Grace'],
+    tags: ['milestone', 'school'],
   },
   {
     id: 'm3',
@@ -90,6 +88,9 @@ const mockResults: SearchResult[] = [
     location: 'Switzerland',
     mediaType: 'image',
     summary: 'Trail snapshots and summit panorama',
+    description: 'A week-long hike through the Alps with amazing views.',
+    people: ['Hannah', 'Ian'],
+    tags: ['travel', 'mountains'],
   },
   {
     id: 'm4',
@@ -102,6 +103,8 @@ const mockResults: SearchResult[] = [
     mediaType: 'document',
     summary: 'Requirements document for Q4 initiative',
     tags: ['work', 'planning'],
+    description: 'Project brief outlining goals and timelines.',
+    people: ['Manager'],
   },
   {
     id: 'm5',
@@ -113,6 +116,9 @@ const mockResults: SearchResult[] = [
     location: 'Phone',
     mediaType: 'audio',
     summary: 'Grandma shares family stories',
+    description: 'Audio interview capturing family history anecdotes.',
+    people: ['Grandma', 'Host'],
+    tags: ['family', 'oral history'],
   },
 ];
 
@@ -132,6 +138,8 @@ const SearchPage = () => {
   const [query, setQuery] = useState<SearchQuery>(initialQuery);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [selected, setSelected] = useState<SearchResult | undefined>();
+  const [showDetails, setShowDetails] = useState(false);
 
   const handleQueryChange = (partial: Partial<SearchQuery>) => {
     setQuery((prev) => ({ ...prev, ...partial }));
@@ -159,6 +167,16 @@ const SearchPage = () => {
 
   const handleSubmit = () => {
     setResults(mockResults);
+  };
+
+  const handleViewDetails = (result: SearchResult) => {
+    setSelected(result);
+    setShowDetails(true);
+  };
+
+  const handleSaveDetails = (updated: DetailedMedia) => {
+    setResults((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+    setSelected((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
   };
 
   const hasResults = results.length > 0;
@@ -253,7 +271,7 @@ const SearchPage = () => {
                             </div>
                           </div>
                           <div>
-                            <Button variant="outline-primary" size="sm">
+                            <Button variant="outline-primary" size="sm" onClick={() => handleViewDetails(result)}>
                               View details
                             </Button>
                           </div>
@@ -271,6 +289,13 @@ const SearchPage = () => {
           )}
         </Col>
       </Row>
+
+      <DetailsModal
+        show={showDetails}
+        media={selected}
+        onClose={() => setShowDetails(false)}
+        onSaveDetails={handleSaveDetails}
+      />
     </Container>
   );
 };
