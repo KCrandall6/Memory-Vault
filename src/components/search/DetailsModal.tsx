@@ -152,11 +152,6 @@ const DetailsModal = ({
                       )}
                     </div>
                   </div>
-
-                  <div className="mt-4 d-flex gap-2">
-                    <Button variant="outline-secondary">Open file</Button>
-                    <Button variant="outline-primary">View in folder</Button>
-                  </div>
                 </div>
               </Col>
             </Row>

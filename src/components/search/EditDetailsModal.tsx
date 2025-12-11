@@ -142,320 +142,302 @@ const EditDetailsModal = ({
     }));
   };
 
-  return (
-    <Modal show={show} onHide={onClose} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Edit details</Modal.Title>
-      </Modal.Header>
-      <Form onSubmit={handleSubmit}>
-        <Modal.Body>
-          <Row className="g-3">
-            <Col md={6}>
-              <Form.Group controlId="title">
-                <Form.Label>Title</Form.Label>
-                <InputGroup>
+ return (
+    <>
+      <Modal show={show} onHide={onClose} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit details</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSubmit}>
+          <Modal.Body>
+            <Row className="g-3">
+              <Col md={6}>
+                <Form.Group controlId="title">
+                  <Form.Label>Title</Form.Label>
                   <Form.Control
                     type="text"
-                    value={collectionSearch}
-                    onChange={(e) => setCollectionSearch(e.target.value)}
-                    placeholder="Search or create collection"
+                    value={formState.title}
+                    onChange={(e) => handleChange('title', e.target.value)}
+                    required
                   />
-                  <Button variant="outline-primary" onClick={() => setShowCollectionModal(true)}>
-                    <i className="bi bi-plus"></i>
-                  </Button>
-                </InputGroup>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="collection">
-                <Form.Label>Collection</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={collectionSearch}
-                  onChange={(e) => setCollectionSearch(e.target.value)}
-                  placeholder="Search or create collection"
-                />
-                <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                  {filteredCollections.length > 0 ? (
-                    filteredCollections.map((collection) => (
-                      <div
-                        key={collection.id}
-                        role="button"
-                        className="py-1 px-2 rounded"
-                        onClick={() => {
-                          handleChange('collection', collection.name);
-                          setCollectionSearch('');
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="collection">
+                  <Form.Label>Collection</Form.Label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      value={collectionSearch}
+                      onChange={(e) => setCollectionSearch(e.target.value)}
+                      placeholder="Search or create collection"
+                    />
+                    <Button variant="outline-primary" onClick={() => setShowCollectionModal(true)}>
+                      <i className="bi bi-plus"></i>
+                    </Button>
+                  </InputGroup>
+                  <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                    {filteredCollections.length > 0 ? (
+                      filteredCollections.map((collection) => (
+                        <div
+                          key={collection.id}
+                          role="button"
+                          className="py-1 px-2 rounded"
+                          onClick={() => {
                             handleChange('collection', collection.name);
                             setCollectionSearch('');
-                          }
-                        }}
-                        tabIndex={0}
-                        style={{ cursor: 'pointer' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      >
-                        {collection.name}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-muted small">No matches</div>
-                  )}
-                  {collectionSearch.trim() && (
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="mt-2 w-100"
-                      onClick={() => addNewCollection()}
-                    >
-                      <i className="bi bi-plus"></i> Create "{collectionSearch.trim()}"
-                    </Button>
-                  )}
-                  {formState.collection && !collectionSearch && (
-                    <div className="mt-2">
-                      <Badge bg="light" text="dark" className="me-2">{formState.collection}</Badge>
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleChange('collection', collection.name);
+                              setCollectionSearch('');
+                            }
+                          }}
+                          tabIndex={0}
+                          style={{ cursor: 'pointer' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          {collection.name}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-muted small">No matches</div>
+                    )}
+                    {collectionSearch.trim() && (
                       <Button
-                        variant="outline-danger"
+                        variant="outline-primary"
                         size="sm"
-                        onClick={() => handleChange('collection', '')}
+                        className="mt-2 w-100"
+                        onClick={() => addNewCollection()}
                       >
-                        Clear
+                        <i className="bi bi-plus"></i> Create "{collectionSearch.trim()}"
                       </Button>
-                    </div>
-                  )}
-                </div>
-              </Form.Group>
-            </Col>
-          </Row>
+                    )}
+                    {formState.collection && !collectionSearch && (
+                      <div className="mt-2">
+                        <Badge bg="light" text="dark" className="me-2">{formState.collection}</Badge>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleChange('collection', '')}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </Form.Group>
+              </Col>
+            </Row>
 
-          <Row className="g-3 mt-1">
-            <Col md={6}>
-              <Form.Group controlId="captureDate">
-                <Form.Label>Capture date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={formState.captureDate || ''}
-                  onChange={(e) => handleChange('captureDate', e.target.value)}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="location">
-                <Form.Label>Location</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={formState.location || ''}
-                  onChange={(e) => handleChange('location', e.target.value)}
-                  placeholder="City, venue, or description"
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Form.Group controlId="description" className="mt-3">
-            <Form.Label>Description</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={formState.description || ''}
-              onChange={(e) => handleChange('description', e.target.value)}
-            />
-          </Form.Group>
-
-          <Row className="g-3 mt-1">
-            <Col md={6}>
-              <Form.Group controlId="people">
-                <Form.Label>People</Form.Label>
-                <InputGroup>
+            <Row className="g-3 mt-1">
+              <Col md={6}>
+                <Form.Group controlId="captureDate">
+                  <Form.Label>Capture date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={formState.captureDate || ''}
+                    onChange={(e) => handleChange('captureDate', e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="location">
+                  <Form.Label>Location</Form.Label>
                   <Form.Control
                     type="text"
-                    value={peopleSearch}
-                    onChange={(e) => setPeopleSearch(e.target.value)}
-                    placeholder="Search or add people"
+                    value={formState.location || ''}
+                    onChange={(e) => handleChange('location', e.target.value)}
+                    placeholder="City, venue, or description"
                   />
-                  <Button variant="outline-primary" onClick={() => addPerson(peopleSearch)} disabled={!peopleSearch.trim()}>
-                    Add
-                  </Button>
-                </InputGroup>
-                <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                  {(formState.people || []).length > 0 && (
-                    <div className="mb-2 d-flex flex-wrap gap-2">
-                      {formState.people?.map((person) => (
-                        <Badge key={person} bg="light" text="primary" className="border">
-                          {person}
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="p-0 ms-1 text-decoration-none"
-                            onClick={() => removePerson(person)}
-                          >
-                            ×
-                          </Button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  {filteredPeople.length > 0 ? (
-                    filteredPeople
-                      .filter((person) => !(formState.people || []).includes(person.name))
-                      .map((person) => (
-                        <div
-                          key={person.id}
-                          role="button"
-                          className="py-1 px-2 rounded"
-                          tabIndex={0}
-                          onClick={() => addPerson(person.name)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') addPerson(person.name);
-                          }}
-                          style={{ cursor: 'pointer' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                        >
-                          {person.name}
-                        </div>
-                      ))
-                  ) : (
-                    <div className="text-muted small">No matches</div>
-                  )}
-                  {peopleSearch.trim() && (
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="mt-2 w-100"
-                      onClick={() => addPerson(peopleSearch)}
-                    >
-                      <i className="bi bi-plus"></i> Add "{peopleSearch.trim()}"
-                    </Button>
-                  )}
-                </div>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="tags">
-                <Form.Label>Tags</Form.Label>
-                <InputGroup>
-                  <Form.Control
-                    type="text"
-                    value={tagsSearch}
-                    onChange={(e) => setTagsSearch(e.target.value)}
-                    placeholder="Search or add tags"
-                  />
-                  <Button variant="outline-primary" onClick={() => addTag(tagsSearch)} disabled={!tagsSearch.trim()}>
-                    Add
-                  </Button>
-                </InputGroup>
-                <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                  {(formState.tags || []).length > 0 && (
-                    <div className="mb-2 d-flex flex-wrap gap-2">
-                      {formState.tags?.map((tag) => (
-                        <Badge key={tag} bg="light" text="secondary" className="border">
-                          #{tag}
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="p-0 ms-1 text-decoration-none"
-                            onClick={() => removeTag(tag)}
-                          >
-                            ×
-                          </Button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  {filteredTags.length > 0 ? (
-                    filteredTags
-                      .filter((tag) => !(formState.tags || []).includes(tag.name))
-                      .map((tag) => (
-                        <div
-                          key={tag.id}
-                          role="button"
-                          className="py-1 px-2 rounded"
-                          tabIndex={0}
-                          onClick={() => addTag(tag.name)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') addTag(tag.name);
-                          }}
-                          style={{ cursor: 'pointer' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                        >
-                          {tag.name}
-                        </div>
-                      ))
-                  ) : (
-                    <div className="text-muted small">No matches</div>
-                  )}
-                  {tagsSearch.trim() && (
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="mt-2 w-100"
-                      onClick={() => addTag(tagsSearch)}
-                    >
-                      <i className="bi bi-plus"></i> Add "{tagsSearch.trim()}"
-                    </Button>
-                  )}
-                </div>
-              </Form.Group>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit">
-            Save changes
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+                </Form.Group>
+              </Col>
+            </Row>
 
-    <Modal show={showCollectionModal} onHide={() => setShowCollectionModal(false)} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>New collection</Modal.Title>
-      </Modal.Header>
-      <Form
-        onSubmit={(e) => {
-          e.preventDefault();
-          addNewCollection();
-        }}
-      >
-        <Modal.Body>
-          <Form.Group controlId="newCollectionName">
-            <Form.Label>Name</Form.Label>
-            <Form.Control
-              type="text"
-              value={newCollectionName}
-              onChange={(e) => setNewCollectionName(e.target.value)}
-              placeholder="Family Trip"
-              required
-            />
-          </Form.Group>
-          <Form.Group controlId="newCollectionDescription" className="mt-3">
-            <Form.Label>Description (optional)</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={newCollectionDescription}
-              onChange={(e) => setNewCollectionDescription(e.target.value)}
-              placeholder="Summer vacation, Sweden 2024"
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCollectionModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" disabled={!newCollectionName.trim()}>
-            Save collection
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+            <Form.Group controlId="description" className="mt-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={formState.description || ''}
+                onChange={(e) => handleChange('description', e.target.value)}
+              />
+            </Form.Group>
+
+            <Row className="g-3 mt-1">
+              <Col md={6}>
+                <Form.Group controlId="people">
+                  <Form.Label>People</Form.Label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      value={peopleSearch}
+                      onChange={(e) => setPeopleSearch(e.target.value)}
+                      placeholder="Search or add people"
+                    />
+                    <Button variant="outline-primary" onClick={() => addPerson(peopleSearch)} disabled={!peopleSearch.trim()}>
+                      Add
+                    </Button>
+                  </InputGroup>
+                  <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                    {(formState.people || []).length > 0 && (
+                      <div className="mb-2 d-flex flex-wrap gap-2">
+                        {formState.people?.map((person) => (
+                          <Badge key={person} bg="light" text="primary" className="border">
+                            {person}
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0 ms-1 text-decoration-none"
+                              onClick={() => removePerson(person)}
+                            >
+                              ×
+                            </Button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    {filteredPeople.length > 0 ? (
+                      filteredPeople
+                        .filter((person) => !(formState.people || []).includes(person.name))
+                        .map((person) => (
+                          <div
+                            key={person.id}
+                            role="button"
+                            className="py-1 px-2 rounded"
+                            tabIndex={0}
+                            onClick={() => addPerson(person.name)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') addPerson(person.name);
+                            }}
+                            style={{ cursor: 'pointer' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          >
+                            {person.name}
+                          </div>
+                        ))
+                    ) : (
+                      <div className="text-muted small">No matches</div>
+                    )}
+                  </div>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="tags">
+                  <Form.Label>Tags</Form.Label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      value={tagsSearch}
+                      onChange={(e) => setTagsSearch(e.target.value)}
+                      placeholder="Search or add tags"
+                    />
+                    <Button variant="outline-primary" onClick={() => addTag(tagsSearch)} disabled={!tagsSearch.trim()}>
+                      Add
+                    </Button>
+                  </InputGroup>
+                  <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                    {(formState.tags || []).length > 0 && (
+                      <div className="mb-2 d-flex flex-wrap gap-2">
+                        {formState.tags?.map((tag) => (
+                          <Badge key={tag} bg="light" text="secondary" className="border">
+                            #{tag}
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0 ms-1 text-decoration-none"
+                              onClick={() => removeTag(tag)}
+                            >
+                              ×
+                            </Button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    {filteredTags.length > 0 ? (
+                      filteredTags
+                        .filter((tag) => !(formState.tags || []).includes(tag.name))
+                        .map((tag) => (
+                          <div
+                            key={tag.id}
+                            role="button"
+                            className="py-1 px-2 rounded"
+                            tabIndex={0}
+                            onClick={() => addTag(tag.name)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') addTag(tag.name);
+                            }}
+                            style={{ cursor: 'pointer' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          >
+                            {tag.name}
+                          </div>
+                        ))
+                    ) : (
+                      <div className="text-muted small">No matches</div>
+                    )}
+                  </div>
+                </Form.Group>
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              Save changes
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal show={showCollectionModal} onHide={() => setShowCollectionModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>New collection</Modal.Title>
+        </Modal.Header>
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            addNewCollection();
+          }}
+        >
+          <Modal.Body>
+            <Form.Group controlId="newCollectionName">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={newCollectionName}
+                onChange={(e) => setNewCollectionName(e.target.value)}
+                placeholder="Family Trip"
+                required
+              />
+            </Form.Group>
+            <Form.Group controlId="newCollectionDescription" className="mt-3">
+              <Form.Label>Description (optional)</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={newCollectionDescription}
+                onChange={(e) => setNewCollectionDescription(e.target.value)}
+                placeholder="Summer vacation, Sweden 2024"
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowCollectionModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={!newCollectionName.trim()}>
+              Save collection
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+    </>
   );
 };
 

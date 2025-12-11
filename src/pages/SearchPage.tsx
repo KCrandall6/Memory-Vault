@@ -250,23 +250,45 @@ const SearchPage = () => {
                           <div>
                             <h5 className="mb-1">{result.title}</h5>
                             {result.summary && <div className="text-muted small mb-2">{result.summary}</div>}
-                            <div className="text-muted small mb-2 d-flex flex-wrap gap-2 align-items-center">
-                              <span>{result.captureDate}</span>
-                              {result.location && <span>• {result.location}</span>}
+                            <div className="text-muted small mb-2 d-flex flex-wrap gap-3 align-items-center">
+                              <span>
+                                <span className="fw-semibold">Memory Date:</span> {result.captureDate || '—'}
+                              </span>
+                              {result.location && (
+                                <span>
+                                  <span className="fw-semibold">Location:</span> {result.location || '—'}
+                                </span>
+                              )}
                               {result.collection && (
-                                <Badge bg="light" text="dark">
-                                  {result.collection}
-                                </Badge>
+                                <span>
+                                  <span className="fw-semibold">Collection:</span>{' '}
+                                  <Badge bg="light" text="dark">
+                                    {result.collection}
+                                  </Badge>
+                                </span>
                               )}
                               <Badge bg="secondary">{result.peopleCount} people</Badge>
+                            </div>
+                            <div className="d-flex flex-wrap gap-3 align-items-center">
+                              {result.people && result.people.length > 0 && (
+                                <div className="d-flex flex-wrap gap-1 align-items-center">
+                                  <span className="text-muted small fw-semibold me-1">People:</span>
+                                  {result.people.map((person) => (
+                                    <Badge key={person} bg="light" text="primary" className="border border-primary">
+                                      {person}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
                               {result.tags && result.tags.length > 0 && (
-                                <span className="d-flex flex-wrap gap-1">
-                                  {result.tags.slice(0, 3).map((tag) => (
-                                    <Badge key={tag} bg="light" text="primary" className="border border-primary">
+                                <div className="d-flex flex-wrap gap-1 align-items-center">
+                                  <span className="text-muted small fw-semibold me-1">Tags:</span>
+                                  {result.tags.slice(0, 5).map((tag) => (
+                                    <Badge key={tag} bg="light" text="secondary" className="border">
                                       #{tag}
                                     </Badge>
                                   ))}
-                                </span>
+                                </div>
                               )}
                             </div>
                           </div>
