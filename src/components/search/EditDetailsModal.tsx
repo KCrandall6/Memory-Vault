@@ -150,90 +150,25 @@ const EditDetailsModal = ({
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
-            <Row className="g-3">
-              <Col md={6}>
-                <Form.Group controlId="title">
-                  <Form.Label>Title</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formState.title}
-                    onChange={(e) => handleChange('title', e.target.value)}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group controlId="collection">
-                  <Form.Label>Collection</Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type="text"
-                      value={collectionSearch}
-                      onChange={(e) => setCollectionSearch(e.target.value)}
-                      placeholder="Search or create collection"
-                    />
-                    <Button
-                      variant="outline-secondary"
-                      className="accent-outline-btn"
-                      onClick={() => setShowCollectionModal(true)}
-                    >
-                      + New
-                    </Button>
-                  </InputGroup>
-                  <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                    {filteredCollections.length > 0 ? (
-                      filteredCollections.map((collection) => (
-                        <div
-                          key={collection.id}
-                          role="button"
-                          className="py-1 px-2 rounded"
-                          onClick={() => {
-                            handleChange('collection', collection.name);
-                            setCollectionSearch('');
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleChange('collection', collection.name);
-                              setCollectionSearch('');
-                            }
-                          }}
-                          tabIndex={0}
-                          style={{ cursor: 'pointer' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                        >
-                          {collection.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-muted small">No matches</div>
-                    )}
-                    {collectionSearch.trim() && (
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        className="mt-2 w-100 accent-outline-btn"
-                        onClick={() => addNewCollection()}
-                      >
-                        <i className="bi bi-plus"></i> Create "{collectionSearch.trim()}"
-                      </Button>
-                    )}
-                    {formState.collection && !collectionSearch && (
-                      <div className="mt-2">
-                        <Badge bg="light" text="dark" className="me-2">{formState.collection}</Badge>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => handleChange('collection', '')}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Form.Group>
-              </Col>
-            </Row>
+            <Form.Group controlId="title">
+              <Form.Label>Title</Form.Label>
+              <Form.Control
+                type="text"
+                value={formState.title}
+                onChange={(e) => handleChange('title', e.target.value)}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group controlId="description" className="mt-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={formState.description || ''}
+                onChange={(e) => handleChange('description', e.target.value)}
+              />
+            </Form.Group>
 
             <Row className="g-3 mt-1">
               <Col md={6}>
@@ -259,17 +194,73 @@ const EditDetailsModal = ({
               </Col>
             </Row>
 
-            <Form.Group controlId="description" className="mt-3">
-              <Form.Label>Description</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={formState.description || ''}
-                onChange={(e) => handleChange('description', e.target.value)}
-              />
+            <Form.Group controlId="collection" className="mt-3">
+              <Form.Label>Collection</Form.Label>
+              <InputGroup>
+                <Form.Control
+                  type="text"
+                  value={collectionSearch}
+                  onChange={(e) => setCollectionSearch(e.target.value)}
+                  placeholder="Search collections or type to create"
+                />
+                <Button
+                  variant="outline-secondary"
+                  className="accent-outline-btn"
+                  onClick={() => setShowCollectionModal(true)}
+                >
+                  <i className="bi bi-plus"></i>
+                </Button>
+              </InputGroup>
+              {collectionSearch.trim() && (
+                <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                  {filteredCollections.length > 0 ? (
+                    filteredCollections.map((collection) => (
+                      <div
+                        key={collection.id}
+                        role="button"
+                        className="py-1 px-2 rounded"
+                        onClick={() => {
+                          handleChange('collection', collection.name);
+                          setCollectionSearch('');
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleChange('collection', collection.name);
+                            setCollectionSearch('');
+                          }
+                        }}
+                        tabIndex={0}
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        {collection.name}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-muted small">No matches</div>
+                  )}
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    className="mt-2 w-100 accent-outline-btn"
+                    onClick={() => addNewCollection()}
+                  >
+                    <i className="bi bi-plus"></i> Create "{collectionSearch.trim()}"
+                  </Button>
+                </div>
+              )}
+              {formState.collection && (
+                <div className="mt-2 d-flex align-items-center gap-2">
+                  <Badge bg="light" text="dark" className="border">{formState.collection}</Badge>
+                  <Button variant="outline-danger" size="sm" onClick={() => handleChange('collection', '')}>
+                    Clear
+                  </Button>
+                </div>
+              )}
             </Form.Group>
 
-            <Row className="g-3 mt-1">
+            <Row className="g-3 mt-3">
               <Col md={6}>
                 <Form.Group controlId="people">
                   <Form.Label>People</Form.Label>
@@ -289,26 +280,26 @@ const EditDetailsModal = ({
                       Add
                     </Button>
                   </InputGroup>
-                  <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                    {(formState.people || []).length > 0 && (
-                      <div className="mb-2 d-flex flex-wrap gap-2">
-                        {formState.people?.map((person) => (
-                          <Badge key={person} bg="light" text="primary" className="border">
-                            {person}
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="p-0 ms-1 text-decoration-none"
-                              onClick={() => removePerson(person)}
-                            >
-                              ×
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    {filteredPeople.length > 0 ? (
-                      filteredPeople
+                  {(formState.people || []).length > 0 && (
+                    <div className="mt-2 d-flex flex-wrap gap-2">
+                      {formState.people?.map((person) => (
+                        <Badge key={person} bg="light" text="primary" className="border">
+                          {person}
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="p-0 ms-1 text-decoration-none"
+                            onClick={() => removePerson(person)}
+                          >
+                            ×
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {peopleSearch.trim() && filteredPeople.length > 0 && (
+                    <div className="border rounded p-2 mt-2" style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                      {filteredPeople
                         .filter((person) => !(formState.people || []).includes(person.name))
                         .map((person) => (
                           <div
@@ -326,11 +317,9 @@ const EditDetailsModal = ({
                           >
                             {person.name}
                           </div>
-                        ))
-                    ) : (
-                      <div className="text-muted small">No matches</div>
-                    )}
-                  </div>
+                        ))}
+                    </div>
+                  )}
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -352,26 +341,26 @@ const EditDetailsModal = ({
                       Add
                     </Button>
                   </InputGroup>
-                  <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                    {(formState.tags || []).length > 0 && (
-                      <div className="mb-2 d-flex flex-wrap gap-2">
-                        {formState.tags?.map((tag) => (
-                          <Badge key={tag} bg="light" text="secondary" className="border">
-                            #{tag}
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="p-0 ms-1 text-decoration-none"
-                              onClick={() => removeTag(tag)}
-                            >
-                              ×
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    {filteredTags.length > 0 ? (
-                      filteredTags
+                  {(formState.tags || []).length > 0 && (
+                    <div className="mt-2 d-flex flex-wrap gap-2">
+                      {formState.tags?.map((tag) => (
+                        <Badge key={tag} bg="light" text="secondary" className="border">
+                          #{tag}
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="p-0 ms-1 text-decoration-none"
+                            onClick={() => removeTag(tag)}
+                          >
+                            ×
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {tagsSearch.trim() && filteredTags.length > 0 && (
+                    <div className="border rounded p-2 mt-2" style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                      {filteredTags
                         .filter((tag) => !(formState.tags || []).includes(tag.name))
                         .map((tag) => (
                           <div
@@ -389,11 +378,9 @@ const EditDetailsModal = ({
                           >
                             {tag.name}
                           </div>
-                        ))
-                    ) : (
-                      <div className="text-muted small">No matches</div>
-                    )}
-                  </div>
+                        ))}
+                    </div>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
