@@ -172,8 +172,12 @@ const EditDetailsModal = ({
                       onChange={(e) => setCollectionSearch(e.target.value)}
                       placeholder="Search or create collection"
                     />
-                    <Button variant="outline-primary" onClick={() => setShowCollectionModal(true)}>
-                      <i className="bi bi-plus"></i>
+                    <Button
+                      variant="outline-secondary"
+                      className="accent-outline-btn"
+                      onClick={() => setShowCollectionModal(true)}
+                    >
+                      + New
                     </Button>
                   </InputGroup>
                   <div className="border rounded p-2 mt-1" style={{ maxHeight: '180px', overflowY: 'auto' }}>
@@ -206,9 +210,9 @@ const EditDetailsModal = ({
                     )}
                     {collectionSearch.trim() && (
                       <Button
-                        variant="outline-primary"
+                        variant="outline-secondary"
                         size="sm"
-                        className="mt-2 w-100"
+                        className="mt-2 w-100 accent-outline-btn"
                         onClick={() => addNewCollection()}
                       >
                         <i className="bi bi-plus"></i> Create "{collectionSearch.trim()}"
@@ -276,7 +280,12 @@ const EditDetailsModal = ({
                       onChange={(e) => setPeopleSearch(e.target.value)}
                       placeholder="Search or add people"
                     />
-                    <Button variant="outline-primary" onClick={() => addPerson(peopleSearch)} disabled={!peopleSearch.trim()}>
+                    <Button
+                      variant="outline-secondary"
+                      className="accent-outline-btn"
+                      onClick={() => addPerson(peopleSearch)}
+                      disabled={!peopleSearch.trim()}
+                    >
                       Add
                     </Button>
                   </InputGroup>
@@ -334,7 +343,12 @@ const EditDetailsModal = ({
                       onChange={(e) => setTagsSearch(e.target.value)}
                       placeholder="Search or add tags"
                     />
-                    <Button variant="outline-primary" onClick={() => addTag(tagsSearch)} disabled={!tagsSearch.trim()}>
+                    <Button
+                      variant="outline-secondary"
+                      className="accent-outline-btn"
+                      onClick={() => addTag(tagsSearch)}
+                      disabled={!tagsSearch.trim()}
+                    >
                       Add
                     </Button>
                   </InputGroup>
@@ -388,7 +402,11 @@ const EditDetailsModal = ({
             <Button variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button
+              variant="success"
+              type="submit"
+              style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+            >
               Save changes
             </Button>
           </Modal.Footer>
@@ -431,7 +449,12 @@ const EditDetailsModal = ({
             <Button variant="secondary" onClick={() => setShowCollectionModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" disabled={!newCollectionName.trim()}>
+            <Button
+              variant="success"
+              type="submit"
+              disabled={!newCollectionName.trim()}
+              style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+            >
               Save collection
             </Button>
           </Modal.Footer>

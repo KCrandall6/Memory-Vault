@@ -8,6 +8,7 @@ export type DetailedMedia = {
   title: string;
   description?: string;
   captureDate?: string;
+  uploadDate?: string;
   location?: string;
   collection?: string;
   tags?: string[];
@@ -65,7 +66,11 @@ const DetailsModal = ({
 
   const icon = media ? mediaTypeIcon[media.mediaType] ?? 'bi-file-earmark' : 'bi-file-earmark';
 
-  return (
+  const mediaTypeLabel = media?.mediaType
+    ? media.mediaType.charAt(0).toUpperCase() + media.mediaType.slice(1)
+    : '';
+
+return (
     <>
       <Modal show={show} onHide={onClose} fullscreen centered>
         <Modal.Header closeButton>
@@ -90,7 +95,11 @@ const DetailsModal = ({
                     <Button variant="outline-secondary" size="sm" onClick={() => setShowPreview(true)}>
                       View full screen
                     </Button>
-                    <Button variant="outline-primary" size="sm">
+                    <Button
+                      variant="success"
+                      size="sm"
+                      style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+                    >
                       Download
                     </Button>
                   </div>
@@ -100,30 +109,50 @@ const DetailsModal = ({
                 <div className="bg-white rounded-3 p-4 shadow-sm h-100 d-flex flex-column">
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <div>
-                      <h4 className="mb-1">{media.title}</h4>
-                      {media.collection && (
-                        <Badge bg="light" text="dark" className="me-2">
-                          {media.collection}
-                        </Badge>
-                      )}
-                      <Badge bg="dark" className="text-uppercase">
-                        {media.mediaType}
-                      </Badge>
+                      <div className="text-muted small">Title</div>
+                      <h4 className="mb-2">{media.title}</h4>
+                      <div className="text-muted small d-flex flex-wrap gap-3">
+                        <span>
+                          <span className="fw-semibold">Media Type:</span> {mediaTypeLabel || media.mediaType}
+                        </span>
+                        {media.uploadDate && (
+                          <span>
+                            <span className="fw-semibold">Upload Date:</span> {media.uploadDate}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <Button variant="primary" size="sm" onClick={() => setEditing(true)}>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+                      onClick={() => setEditing(true)}
+                    >
                       Edit details
                     </Button>
                   </div>
-                  {media.description && <p className="text-muted">{media.description}</p>}
 
-                  <div className="mt-2">
-                    <div className="fw-semibold">Capture date</div>
-                    <div className="text-muted">{media.captureDate || '—'}</div>
+                  <div className="mb-3">
+                    <div className="fw-semibold">Description</div>
+                    <div className="text-muted">{media.description || '—'}</div>
                   </div>
+
+                  <Row className="g-3">
+                    <Col md={6}>
+                      <div className="fw-semibold">Capture Date</div>
+                      <div className="text-muted">{media.captureDate || '—'}</div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="fw-semibold">Location</div>
+                      <div className="text-muted">{media.location || '—'}</div>
+                    </Col>
+                  </Row>
+
                   <div className="mt-3">
-                    <div className="fw-semibold">Location</div>
-                    <div className="text-muted">{media.location || '—'}</div>
+                    <div className="fw-semibold">Collection</div>
+                    <div className="text-muted">{media.collection || '—'}</div>
                   </div>
+
                   <div className="mt-3">
                     <div className="fw-semibold">People</div>
                     <div className="d-flex flex-wrap gap-2 mt-1">

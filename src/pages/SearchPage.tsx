@@ -56,6 +56,7 @@ const mockResults: SearchResult[] = [
     title: 'Family picnic 1998',
     thumbnail: 'https://via.placeholder.com/400x250?text=Picnic',
     captureDate: '1998-06-14',
+    uploadDate: '2023-07-12',
     collection: 'Family',
     peopleCount: 4,
     location: 'Central Park',
@@ -69,6 +70,7 @@ const mockResults: SearchResult[] = [
     title: 'Graduation day',
     thumbnail: 'https://via.placeholder.com/400x250?text=Graduation',
     captureDate: '2008-05-30',
+    uploadDate: '2022-09-02',
     collection: 'Work',
     peopleCount: 3,
     location: 'Madison',
@@ -83,6 +85,7 @@ const mockResults: SearchResult[] = [
     title: 'Hiking the Alps',
     thumbnail: 'https://via.placeholder.com/400x250?text=Alps',
     captureDate: '2012-09-18',
+    uploadDate: '2021-11-15',
     collection: 'Vacations',
     peopleCount: 2,
     location: 'Switzerland',
@@ -97,6 +100,7 @@ const mockResults: SearchResult[] = [
     title: 'Project brief PDF',
     thumbnail: '',
     captureDate: '2019-11-02',
+    uploadDate: '2020-01-08',
     collection: 'Work',
     peopleCount: 1,
     location: 'Remote',
@@ -111,6 +115,7 @@ const mockResults: SearchResult[] = [
     title: 'Interview audio',
     thumbnail: '',
     captureDate: '2015-04-10',
+    uploadDate: '2024-02-20',
     collection: 'Family',
     peopleCount: 2,
     location: 'Phone',
@@ -293,7 +298,12 @@ const SearchPage = () => {
                             </div>
                           </div>
                           <div>
-                            <Button variant="outline-primary" size="sm" onClick={() => handleViewDetails(result)}>
+                            <Button
+                              variant="success"
+                              size="sm"
+                              style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+                              onClick={() => handleViewDetails(result)}
+                            >
                               View details
                             </Button>
                           </div>
