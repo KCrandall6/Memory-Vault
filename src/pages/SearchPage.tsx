@@ -46,7 +46,6 @@ const mockTags: ReferenceOption[] = [
 ];
 
 type SearchResult = DetailedMedia & {
-  peopleCount: number;
   summary?: string;
 };
 
@@ -58,7 +57,6 @@ const mockResults: SearchResult[] = [
     captureDate: '1998-06-14',
     uploadDate: '2023-07-12',
     collection: 'Family',
-    peopleCount: 4,
     location: 'Central Park',
     mediaType: 'image',
     description: 'Sunny afternoon picnic with the family and cousins.',
@@ -72,7 +70,6 @@ const mockResults: SearchResult[] = [
     captureDate: '2008-05-30',
     uploadDate: '2022-09-02',
     collection: 'Work',
-    peopleCount: 3,
     location: 'Madison',
     mediaType: 'image',
     summary: 'Ceremony photos and program',
@@ -87,7 +84,6 @@ const mockResults: SearchResult[] = [
     captureDate: '2012-09-18',
     uploadDate: '2021-11-15',
     collection: 'Vacations',
-    peopleCount: 2,
     location: 'Switzerland',
     mediaType: 'image',
     summary: 'Trail snapshots and summit panorama',
@@ -102,7 +98,6 @@ const mockResults: SearchResult[] = [
     captureDate: '2019-11-02',
     uploadDate: '2020-01-08',
     collection: 'Work',
-    peopleCount: 1,
     location: 'Remote',
     mediaType: 'document',
     summary: 'Requirements document for Q4 initiative',
@@ -117,7 +112,6 @@ const mockResults: SearchResult[] = [
     captureDate: '2015-04-10',
     uploadDate: '2024-02-20',
     collection: 'Family',
-    peopleCount: 2,
     location: 'Phone',
     mediaType: 'audio',
     summary: 'Grandma shares family stories',
@@ -267,19 +261,16 @@ const SearchPage = () => {
                               {result.collection && (
                                 <span>
                                   <span className="fw-semibold">Collection:</span>{' '}
-                                  <Badge bg="light" text="dark">
                                     {result.collection}
-                                  </Badge>
                                 </span>
                               )}
-                              <Badge bg="secondary">{result.peopleCount} people</Badge>
                             </div>
                             <div className="d-flex flex-wrap gap-3 align-items-center">
                               {result.people && result.people.length > 0 && (
                                 <div className="d-flex flex-wrap gap-1 align-items-center">
                                   <span className="text-muted small fw-semibold me-1">People:</span>
                                   {result.people.map((person) => (
-                                    <Badge key={person} bg="light" text="primary" className="border border-primary">
+                                    <Badge key={person} className="people-chip">
                                       {person}
                                     </Badge>
                                   ))}

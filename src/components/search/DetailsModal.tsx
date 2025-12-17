@@ -158,7 +158,7 @@ return (
                     <div className="d-flex flex-wrap gap-2 mt-1">
                       {media.people && media.people.length > 0 ? (
                         media.people.map((person) => (
-                          <Badge key={person} bg="light" text="primary" className="border border-primary">
+                          <Badge key={person} bg="light" text="primary" className="people-chip">
                             {person}
                           </Badge>
                         ))

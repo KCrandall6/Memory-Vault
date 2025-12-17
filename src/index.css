@@ -144,6 +144,12 @@ button:focus-visible {
   opacity: 0.65;
 }
 
+.badge.people-chip {
+  background-color: #4A6FA5 !important;
+  color: #fff !important;
+  border: 1px solid #4A6FA5 !important;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
