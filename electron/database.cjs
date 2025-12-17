@@ -1,15 +1,24 @@
++13
+-1
+
 // electron/database.cjs - Updated version
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
+const { pathToFileURL } = require('url');
 const storageRoot = require('./storage-root.cjs');
 
 const {
   ensureStorageRoot,
   ensureArchiveDirectory,
-  getDatabasePath
+  getDatabasePath,
+  resolveArchiveFilePath
 } = storageRoot;
+
+function resolveMediaAbsolutePath(filePath) {
+  return resolveArchiveFilePath(filePath);
+}
 
 function resolveSchemaPath() {
   const candidatePaths = [
@@ -194,6 +203,10 @@ function buildRelevanceClause({ searchTerm, titleTerm, locationTerm, peopleText,
   if (peopleText) {
     clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM MediaPeople mp JOIN People p ON p.id = mp.person_id WHERE mp.media_id = m.id AND LOWER(p.name) LIKE ?) THEN 3 ELSE 0 END`);
     params.push(`%${peopleText}%`);
+    } else if (searchTerm) {
+    const like = `%${searchTerm}%`;
+    clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM MediaPeople mp JOIN People p ON p.id = mp.person_id WHERE mp.media_id = m.id AND LOWER(p.name) LIKE ?) THEN 2 ELSE 0 END`);
+    params.push(like);
   }
 
   if (tagsText) {
@@ -206,12 +219,18 @@ function buildRelevanceClause({ searchTerm, titleTerm, locationTerm, peopleText,
 }
 
 function mapAggregates(row) {
+  const absolutePath = resolveMediaAbsolutePath(row.file_path);
+  const absoluteThumbnail = resolveMediaAbsolutePath(row.thumbnail_path);
   return {
     ...row,
     media_type: row.media_type,
     collection_name: row.collection_name,
     tags: row.tags ? row.tags.split('|').filter(Boolean) : [],
     people: row.people ? row.people.split('|').filter(Boolean) : [],
+    file_path: absolutePath || row.file_path,
+    file_url: absolutePath ? pathToFileURL(absolutePath).href : null,
+    thumbnail_path: absoluteThumbnail || row.thumbnail_path,
+    thumbnail_url: absoluteThumbnail ? pathToFileURL(absoluteThumbnail).href : null
   };
 }
 
@@ -281,8 +300,9 @@ function searchMedia(criteria = {}) {
 
     if (searchTerm) {
       const like = `%${searchTerm}%`;
-      query += ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.location) LIKE ?)`;
-      params.push(like, like, like);
+      query +=
+        ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.location) LIKE ? OR EXISTS (SELECT 1 FROM MediaPeople mp2 JOIN People p2 ON p2.id = mp2.person_id WHERE mp2.media_id = m.id AND LOWER(p2.name) LIKE ?))`;
+      params.push(like, like, like, like);
     }
 
     if (titleTerm) {

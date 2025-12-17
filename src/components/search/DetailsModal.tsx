@@ -15,6 +15,8 @@ export type DetailedMedia = {
   people?: string[];
   mediaType: string;
   thumbnail?: string;
+  filePath?: string;
+  fileUrl?: string;
 };
 
 type DetailsModalProps = {
@@ -49,6 +51,8 @@ const DetailsModal = ({
   const previewSource = useMemo(() => {
     if (!media) return undefined;
     if (media.thumbnail && media.thumbnail.length > 0) return media.thumbnail;
+    if (media.fileUrl && media.fileUrl.length > 0) return media.fileUrl;
+    if (media.filePath && media.filePath.length > 0) return media.filePath;
     return undefined;
   }, [media]);
 
@@ -62,6 +66,19 @@ const DetailsModal = ({
     };
     onSaveDetails(updated);
     setEditing(false);
+  };
+
+    const handleDownload = async () => {
+    if (!media || (!media.filePath && !media.fileUrl)) return;
+    const sourcePath = media.filePath || media.fileUrl;
+    try {
+      await window.electronAPI.downloadMediaFile({
+        filePath: sourcePath,
+        defaultFileName: media.title || 'memory'
+      });
+    } catch (error) {
+      console.error('Error downloading media', error);
+    }
   };
 
   const icon = media ? mediaTypeIcon[media.mediaType] ?? 'bi-file-earmark' : 'bi-file-earmark';
@@ -99,6 +116,7 @@ return (
                       variant="success"
                       size="sm"
                       style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+                      onClick={handleDownload}
                     >
                       Download
                     </Button>

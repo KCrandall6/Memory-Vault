@@ -1,5 +1,5 @@
 import require$$0, { app as app$2, BrowserWindow, ipcMain, dialog } from "electron";
-import { fileURLToPath } from "url";
+import require$$4, { fileURLToPath } from "url";
 import path$2 from "path";
 import fs$2 from "fs/promises";
 import require$$2 from "fs";
@@ -33,6 +33,13 @@ function ensureArchiveDirectory$3() {
   }
   return archiveDir;
 }
+function resolveArchiveFilePath$1(relativePath) {
+  if (!relativePath) return null;
+  const cleaned = relativePath.startsWith("file://") ? new URL(relativePath).pathname : relativePath;
+  const normalized = cleaned.replace(/\\/g, "/");
+  if (path$1.isAbsolute(normalized)) return normalized;
+  return path$1.join(resolveStorageRoot(), normalized);
+}
 function getDatabasePath$2() {
   const root = ensureStorageRoot$2();
   return path$1.join(root, DATABASE_FILENAME);
@@ -43,7 +50,8 @@ var storageRoot$1 = {
   resolveStorageRoot,
   ensureStorageRoot: ensureStorageRoot$2,
   ensureArchiveDirectory: ensureArchiveDirectory$3,
-  getDatabasePath: getDatabasePath$2
+  getDatabasePath: getDatabasePath$2,
+  resolveArchiveFilePath: resolveArchiveFilePath$1
 };
 const storageRoot$2 = /* @__PURE__ */ getDefaultExportFromCjs(storageRoot$1);
 const {
@@ -133,12 +141,17 @@ const { app } = require$$0;
 const path = path$2;
 const fs = require$$2;
 const Database = require$$3;
+const { pathToFileURL } = require$$4;
 const storageRoot = storageRoot$1;
 const {
   ensureStorageRoot: ensureStorageRoot$1,
   ensureArchiveDirectory: ensureArchiveDirectory$1,
-  getDatabasePath
+  getDatabasePath,
+  resolveArchiveFilePath
 } = storageRoot;
+function resolveMediaAbsolutePath(filePath) {
+  return resolveArchiveFilePath(filePath);
+}
 function resolveSchemaPath() {
   const candidatePaths = [
     path.join(process.cwd(), "resources", "create-database.sql"),
@@ -283,6 +296,10 @@ function buildRelevanceClause({ searchTerm, titleTerm, locationTerm, peopleText,
   if (peopleText) {
     clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM MediaPeople mp JOIN People p ON p.id = mp.person_id WHERE mp.media_id = m.id AND LOWER(p.name) LIKE ?) THEN 3 ELSE 0 END`);
     params.push(`%${peopleText}%`);
+  } else if (searchTerm) {
+    const like = `%${searchTerm}%`;
+    clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM MediaPeople mp JOIN People p ON p.id = mp.person_id WHERE mp.media_id = m.id AND LOWER(p.name) LIKE ?) THEN 2 ELSE 0 END`);
+    params.push(like);
   }
   if (tagsText) {
     clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM MediaTags mt2 JOIN Tags t2 ON t2.id = mt2.tag_id WHERE mt2.media_id = m.id AND LOWER(t2.name) LIKE ?) THEN 2 ELSE 0 END`);
@@ -292,12 +309,18 @@ function buildRelevanceClause({ searchTerm, titleTerm, locationTerm, peopleText,
   return { relevanceSql, relevanceParams: params };
 }
 function mapAggregates(row) {
+  const absolutePath = resolveMediaAbsolutePath(row.file_path);
+  const absoluteThumbnail = resolveMediaAbsolutePath(row.thumbnail_path);
   return {
     ...row,
     media_type: row.media_type,
     collection_name: row.collection_name,
     tags: row.tags ? row.tags.split("|").filter(Boolean) : [],
-    people: row.people ? row.people.split("|").filter(Boolean) : []
+    people: row.people ? row.people.split("|").filter(Boolean) : [],
+    file_path: absolutePath || row.file_path,
+    file_url: absolutePath ? pathToFileURL(absolutePath).href : null,
+    thumbnail_path: absoluteThumbnail || row.thumbnail_path,
+    thumbnail_url: absoluteThumbnail ? pathToFileURL(absoluteThumbnail).href : null
   };
 }
 function searchMedia(criteria = {}) {
@@ -360,8 +383,8 @@ function searchMedia(criteria = {}) {
     const params = [...relevanceParams];
     if (searchTerm) {
       const like = `%${searchTerm}%`;
-      query += ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.location) LIKE ?)`;
-      params.push(like, like, like);
+      query += ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.location) LIKE ? OR EXISTS (SELECT 1 FROM MediaPeople mp2 JOIN People p2 ON p2.id = mp2.person_id WHERE mp2.media_id = m.id AND LOWER(p2.name) LIKE ?))`;
+      params.push(like, like, like, like);
     }
     if (titleTerm) {
       query += ` AND LOWER(m.title) LIKE ?`;
@@ -866,6 +889,27 @@ function setupIpcHandlers() {
       return { success: true, media: updated };
     } catch (error) {
       console.error("Error updating media details:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  });
+  ipcMain.handle("download-media-file", async (_event, payload) => {
+    try {
+      const absolutePath = storageRoot$1.resolveArchiveFilePath(payload.filePath);
+      if (!absolutePath) {
+        throw new Error("File path was not provided.");
+      }
+      const defaultFileName = payload.defaultFileName || path$2.basename(absolutePath);
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        defaultPath: defaultFileName,
+        title: "Save media as"
+      });
+      if (canceled || !filePath) {
+        return { success: false, canceled: true };
+      }
+      await fs$2.copyFile(absolutePath, filePath);
+      return { success: true };
+    } catch (error) {
+      console.error("Error downloading media file:", error);
       return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   });

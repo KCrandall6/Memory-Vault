@@ -11,6 +11,7 @@ interface ElectronAPI {
     searchMedia: (criteria: any) => Promise<any[]>;
     getMediaDetails: (id: number) => Promise<any | null>;
     updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
+    downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) => Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
   }
   
   declare global {

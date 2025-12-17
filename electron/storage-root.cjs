@@ -29,6 +29,14 @@ function ensureArchiveDirectory() {
   return archiveDir;
 }
 
+function resolveArchiveFilePath(relativePath) {
+  if (!relativePath) return null;
+  const cleaned = relativePath.startsWith('file://') ? new URL(relativePath).pathname : relativePath;
+  const normalized = cleaned.replace(/\\/g, '/');
+  if (path.isAbsolute(normalized)) return normalized;
+  return path.join(resolveStorageRoot(), normalized);
+}
+
 function getDatabasePath() {
   const root = ensureStorageRoot();
   return path.join(root, DATABASE_FILENAME);
@@ -41,4 +49,5 @@ module.exports = {
   ensureStorageRoot,
   ensureArchiveDirectory,
   getDatabasePath,
+  resolveArchiveFilePath,
 };

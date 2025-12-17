@@ -1,34 +1,43 @@
-# Memory-Vault
-Memory Vault application
+# Memory Vault
 
-this is the readme
+Memory Vault is an Electron + React app for organizing photos, documents, videos, and other media. It stores files in a portable archive folder alongside a SQLite database so the entire library can live on an external drive.
 
+## Developing
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+### Prerequisites
+- Node.js 18+
+- npm
 
-Currently, two official plugins are available:
+### Run the Electron dev app
+The Vite dev server is wired to Electron through `vite-plugin-electron`. Launch the full desktop app (with access to `file://` previews) via:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+```bash
+npm install
+npm run dev
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+This starts Vite and automatically opens an Electron window pointed at the dev server. If you manually open the `http://localhost:5173` URL in a normal browser, local file previews will be blocked by the browser sandbox; use the Electron window instead.
+
+### Linting
+
+```bash
+npm run lint
+```
+
+## Building an installer / portable build
+
+The project is configured for electron-builder. Generate platform installers (including a Windows `.exe`) with:
+
+```bash
+npm run build
+```
+
+Outputs are written to `release/<version>/` based on `electron-builder.json5`. For Windows you will see:
+- `Memory Vault-Windows-<version>-Setup.exe` (NSIS installer with selectable install directory)
+- `win-unpacked/` folder containing a portable `Memory Vault.exe`
+
+On macOS a `.dmg` is produced, and on Linux an `.AppImage` is produced under the same release folder.
+
+## File/storage layout
+
+In packaged builds, the archive folder (`Memory Vault Archive`) and SQLite database (`memoryvault.db`) are created next to the executable by default. In development they are created under your user data directory (e.g., `%AppData%/temp-project---template-react/MemoryVault`).

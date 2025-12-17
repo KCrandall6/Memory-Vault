@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
+import { resolveArchiveFilePath } from './storage-root.cjs';
 import { testDatabase } from './db-test';
 
 // Import database operations - keep this as CommonJS import
@@ -183,6 +184,31 @@ function setupIpcHandlers() {
       return { success: true, media: updated };
     } catch (error) {
       console.error('Error updating media details:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+    ipcMain.handle('download-media-file', async (_event, payload: { filePath: string; defaultFileName?: string }) => {
+    try {
+      const absolutePath = resolveArchiveFilePath(payload.filePath);
+      if (!absolutePath) {
+        throw new Error('File path was not provided.');
+      }
+
+      const defaultFileName = payload.defaultFileName || path.basename(absolutePath);
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        defaultPath: defaultFileName,
+        title: 'Save media as'
+      });
+
+      if (canceled || !filePath) {
+        return { success: false, canceled: true };
+      }
+
+      await fs.copyFile(absolutePath, filePath);
+      return { success: true };
+    } catch (error) {
+      console.error('Error downloading media file:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   });

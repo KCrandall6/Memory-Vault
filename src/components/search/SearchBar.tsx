@@ -73,7 +73,7 @@ const SearchBar = ({
   };
 
   return (
-    <div className="bg-white rounded-3 shadow-sm p-3 sticky-top" style={{ top: '80px', zIndex: 10 }}>
+    <div className="bg-white rounded-3 shadow-sm p-3">
       <Row className="g-3 align-items-center">
         <Col lg={4} md={12}>
           <InputGroup>
@@ -159,6 +159,27 @@ const SearchBar = ({
                   {availableMediaTypes.map((type) => (
                     <option key={type.id} value={type.id}>
                       {type.name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col lg={3} md={6}>
+              <Form.Group controlId="advanced-collection">
+                <Form.Label className="small text-muted">Collection</Form.Label>
+                <Form.Select
+                  value={query.collections[0] ?? ''}
+                  onChange={(event) =>
+                    handleMultiSelectChange(
+                      'collections',
+                      event.target.value ? [event.target.value] : []
+                    )
+                  }
+                >
+                  <option value="">Any collection</option>
+                  {availableCollections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.name}
                     </option>
                   ))}
                 </Form.Select>

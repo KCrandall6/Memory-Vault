@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   searchMedia: (criteria) => ipcRenderer.invoke("search-media", criteria),
   getMediaDetails: (id) => ipcRenderer.invoke("get-media-details", id),
   updateMediaDetails: (payload) => ipcRenderer.invoke("update-media-details", payload),
+  downloadMediaFile: (payload) => ipcRenderer.invoke("download-media-file", payload),
   // Event listeners
   onMainProcessMessage: (callback) => {
     ipcRenderer.on("main-process-message", (_event, ...args) => callback(...args));

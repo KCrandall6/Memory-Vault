@@ -23,6 +23,9 @@ type SearchResult = DetailedMedia & {
   id: number;
   mediaTypeId?: number;
   summary?: string;
+  filePath?: string;
+  fileUrl?: string;
+  thumbnail?: string;
 };
 
 const mediaTypeIcon: Record<string, string> = {
@@ -48,7 +51,9 @@ const normalizeResult = (row: any): SearchResult => ({
   mediaTypeId: row.media_type_id,
   tags: row.tags || [],
   people: row.people || [],
-  thumbnail: row.thumbnail_path || undefined,
+  thumbnail: row.thumbnail_url || row.thumbnail_path || undefined,
+  filePath: row.file_path || undefined,
+  fileUrl: row.file_url || undefined,
 });
 
 const normalizeDetails = (row: any): DetailedMedia => ({
@@ -62,7 +67,9 @@ const normalizeDetails = (row: any): DetailedMedia => ({
   mediaType: row.media_type ? String(row.media_type).toLowerCase() : row.mediaType || 'document',
   tags: row.tags || [],
   people: row.people || [],
-  thumbnail: row.thumbnail_path || row.thumbnail || undefined,
+  thumbnail: row.thumbnail_url || row.thumbnail_path || row.thumbnail || undefined,
+  filePath: row.file_path || row.filePath || undefined,
+  fileUrl: row.file_url || row.fileUrl || undefined,
 });
 
 const SearchPage = () => {
@@ -78,6 +85,7 @@ const SearchPage = () => {
   const [selected, setSelected] = useState<DetailedMedia | undefined>();
   const [showDetails, setShowDetails] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [resolvedResults, setResolvedResults] = useState<SearchResult[]>([]);
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -155,10 +163,67 @@ const SearchPage = () => {
     }
   }, [query]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolvePreviews = async () => {
+      setResolvedResults(results);
+
+      if (!window.electronAPI?.getFilePreview) {
+        return;
+      }
+
+      const hydrated = await Promise.all(
+        results.map(async (result) => {
+          if (result.thumbnail?.startsWith('data:')) return result;
+
+          const candidate = result.thumbnail || result.fileUrl || result.filePath;
+          if (!candidate) return result;
+
+          try {
+            const preview = await window.electronAPI.getFilePreview(candidate);
+            if (preview?.dataUrl) {
+              return { ...result, thumbnail: preview.dataUrl };
+            }
+          } catch (err) {
+            console.warn('Error resolving preview', err);
+          }
+
+          return result;
+        })
+      );
+
+      if (!cancelled) {
+        setResolvedResults(hydrated);
+      }
+    };
+
+    resolvePreviews();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [results]);
+
   const handleViewDetails = async (result: SearchResult) => {
     try {
       const details = await window.electronAPI.getMediaDetails(result.id);
-      const normalized = details ? normalizeDetails(details) : normalizeDetails(result);
+      let normalized = details ? normalizeDetails(details) : normalizeDetails(result);
+
+      const previewCandidate =
+        normalized.thumbnail || normalized.fileUrl || normalized.filePath || result.thumbnail || result.fileUrl || result.filePath;
+
+      if (previewCandidate && window.electronAPI?.getFilePreview && !normalized.thumbnail?.startsWith('data:')) {
+        try {
+          const preview = await window.electronAPI.getFilePreview(previewCandidate);
+          if (preview?.dataUrl) {
+            normalized = { ...normalized, thumbnail: preview.dataUrl };
+          }
+        } catch (err) {
+          console.warn('Error fetching detail preview', err);
+        }
+      }
+
       setSelected(normalized);
       setShowDetails(true);
     } catch (err) {
@@ -194,7 +259,12 @@ const SearchPage = () => {
 
   const hasResults = results.length > 0;
 
-  const getThumbnail = (result: SearchResult) => result.thumbnail && result.thumbnail.length > 0 ? result.thumbnail : undefined;
+  const getThumbnail = (result: SearchResult) => {
+    if (result.thumbnail && result.thumbnail.length > 0) return result.thumbnail;
+    if (result.fileUrl && result.fileUrl.length > 0) return result.fileUrl;
+    if (result.filePath && result.filePath.length > 0) return result.filePath;
+    return undefined;
+  };
 
   return (
     <Container fluid className="py-4" style={{ maxWidth: '1400px' }}>
@@ -246,7 +316,7 @@ const SearchPage = () => {
                     <Spinner animation="border" role="status" />
                   </div>
                 )}
-                {results.map((result) => {
+                {resolvedResults.map((result) => {
                   const icon = mediaTypeIcon[result.mediaType] ?? 'bi-file-earmark';
                   return (
                     <div

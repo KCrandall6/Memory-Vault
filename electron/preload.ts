@@ -15,6 +15,7 @@ interface ElectronAPI {
   updateMediaDetails: (
     payload: any
   ) => Promise<{ success: boolean; media?: any; error?: string }>;
+  downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) => Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
   onMainProcessMessage: (callback: (...args: any[]) => void) => void;
 }
 
@@ -33,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchMedia: (criteria) => ipcRenderer.invoke('search-media', criteria),
   getMediaDetails: (id) => ipcRenderer.invoke('get-media-details', id),
   updateMediaDetails: (payload) => ipcRenderer.invoke('update-media-details', payload),
+  downloadMediaFile: (payload) => ipcRenderer.invoke('download-media-file', payload),
   
   // Event listeners
   onMainProcessMessage: (callback) => {
