@@ -20,12 +20,8 @@ const initialQuery: SearchQuery = {
 };
 
 type SearchResult = DetailedMedia & {
-  id: number;
   mediaTypeId?: number;
   summary?: string;
-  filePath?: string;
-  fileUrl?: string;
-  thumbnail?: string;
 };
 
 const mediaTypeIcon: Record<string, string> = {
@@ -39,7 +35,7 @@ const mapReference = (items: any[] = []): ReferenceOption[] =>
   items.map((item) => ({ id: String(item.id), name: item.name }));
 
 const normalizeResult = (row: any): SearchResult => ({
-  id: row.id,
+  id: String(row.id),
   title: row.title || row.file_name || 'Untitled memory',
   description: row.description || '',
   summary: row.description || undefined,
@@ -207,7 +203,7 @@ const SearchPage = () => {
 
   const handleViewDetails = async (result: SearchResult) => {
     try {
-      const details = await window.electronAPI.getMediaDetails(result.id);
+      const details = await window.electronAPI.getMediaDetails(Number(result.id));
       let normalized = details ? normalizeDetails(details) : normalizeDetails(result);
 
       const previewCandidate =
@@ -244,13 +240,13 @@ const SearchPage = () => {
         collection: updated.collection,
         tags: updated.tags || [],
         people: updated.people || [],
-        mediaTypeId: (results.find((item) => item.id === Number(updated.id))?.mediaTypeId) || undefined,
+        mediaTypeId: results.find((item) => item.id === updated.id)?.mediaTypeId || undefined,
       };
       const response = await window.electronAPI.updateMediaDetails(payload);
       if (response.success && response.media) {
         const normalized = normalizeDetails(response.media);
         setSelected(normalized);
-        setResults((prev) => prev.map((item) => (item.id === payload.id ? { ...item, ...normalized } : item)));
+        setResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
       }
     } catch (err) {
       console.error('Error saving media details', err);

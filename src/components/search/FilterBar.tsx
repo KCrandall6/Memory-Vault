@@ -104,7 +104,6 @@ title: string;
                           <Form.Check
                             key={option.id}
                             inline
-                            size="sm"
                             type={section.type}
                             id={`${section.key}-${option.id}`}
                             label={option.name}

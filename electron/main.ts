@@ -1,8 +1,10 @@
+/// <reference path="./storage-root.d.ts" />
 // electron/main.ts - cleaned version
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
+// @ts-ignore - CommonJS helper without bundled types
 import { resolveArchiveFilePath } from './storage-root.cjs';
 import { testDatabase } from './db-test';
 
@@ -222,7 +224,18 @@ function setupIpcHandlers() {
       const processedFile = await processMediaFile(data.filePath, path.basename(data.filePath));
       
       // Prepare media data for database
-      const mediaData = {
+      const mediaData: {
+        file_name: string;
+        file_path: string;
+        thumbnail_path: string | null;
+        title: string;
+        description: string;
+        media_type_id: number;
+        source_type_id: number | null;
+        capture_date: string | null;
+        location: string | null;
+        collection_id: number | null;
+      } = {
         file_name: processedFile.fileName,
         file_path: processedFile.relativePath,
         thumbnail_path: null,

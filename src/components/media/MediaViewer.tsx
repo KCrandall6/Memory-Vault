@@ -23,7 +23,7 @@ interface MediaViewerProps {
 const MediaViewer = ({ media, thumbnail }: MediaViewerProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

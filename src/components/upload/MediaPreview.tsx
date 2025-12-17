@@ -11,7 +11,6 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
   const [fileType, setFileType] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
   
   // For expand and zoom features
   const [showFullscreen, setShowFullscreen] = useState<boolean>(false);
@@ -33,8 +32,6 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
       return;
     }
     
-    // Store debug info
-    setDebugInfo(file);
     console.log('File to preview:', file);
     
     setIsLoading(true);
@@ -239,7 +236,7 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
                   maxHeight: '500px', 
                   transition: 'transform 0.2s ease'
                 }}
-                onError={(e) => {
+                onError={() => {
                   console.error('Image failed to load:', previewUrl.substring(0, 100) + '...');
                   setError('Failed to load image preview');
                 }}

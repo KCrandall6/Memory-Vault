@@ -28,10 +28,15 @@ interface Window {
     saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
     getFilePreview: (filePath: string) => Promise<{ dataUrl: string; mimeType: string } | null>;
     getMediaTypes: () => Promise<any[]>;
-    getSourceTypes: () => Promise<any[]>;
+    getSourceTypes?: () => Promise<any[]>;
     getCollections: () => Promise<any[]>;
     getTags: () => Promise<any[]>;
     getPeople: () => Promise<any[]>;
+    searchMedia: (criteria: any) => Promise<any[]>;
+    getMediaDetails: (id: number) => Promise<any | null>;
+    updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
+    downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>
+      Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
     onMainProcessMessage: (callback: (...args: any[]) => void) => void;
   }
 }

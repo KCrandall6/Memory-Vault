@@ -1,7 +1,7 @@
 // electron/preload.ts - cleaned version
+import type { IpcRendererEvent } from 'electron';
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Define TypeScript interfaces for ElectronAPI
 interface ElectronAPI {
   selectFiles: () => Promise<any[]>;
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
@@ -12,21 +12,16 @@ interface ElectronAPI {
   getPeople: () => Promise<any[]>;
   searchMedia: (criteria: any) => Promise<any[]>;
   getMediaDetails: (id: number) => Promise<any | null>;
-  updateMediaDetails: (
-    payload: any
-  ) => Promise<{ success: boolean; media?: any; error?: string }>;
-  downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) => Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
-  onMainProcessMessage: (callback: (...args: any[]) => void) => void;
+  updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
+  downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>
+    Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
+  onMainProcessMessage: (callback: (...args: unknown[]) => void) => void;
 }
 
-// Expose validated APIs to renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
-  // File operations
   selectFiles: () => ipcRenderer.invoke('select-files'),
   saveMedia: (data) => ipcRenderer.invoke('save-media', data),
   getFilePreview: (filePath) => ipcRenderer.invoke('get-file-preview', filePath),
-  
-  // Database operations
   getMediaTypes: () => ipcRenderer.invoke('get-media-types'),
   getCollections: () => ipcRenderer.invoke('get-collections'),
   getTags: () => ipcRenderer.invoke('get-tags'),
@@ -35,9 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMediaDetails: (id) => ipcRenderer.invoke('get-media-details', id),
   updateMediaDetails: (payload) => ipcRenderer.invoke('update-media-details', payload),
   downloadMediaFile: (payload) => ipcRenderer.invoke('download-media-file', payload),
-  
-  // Event listeners
   onMainProcessMessage: (callback) => {
-    ipcRenderer.on('main-process-message', (_event, ...args) => callback(...args));
-  }
-} as ElectronAPI)
+    ipcRenderer.on('main-process-message', (_event: IpcRendererEvent, ...args: unknown[]) => callback(...args));
+  },
+} as ElectronAPI);

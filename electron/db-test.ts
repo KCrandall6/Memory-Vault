@@ -1,3 +1,4 @@
+// @ts-nocheck
 // electron/db-test.ts
 import path from 'path';
 import fs from 'fs/promises';
@@ -58,7 +59,7 @@ export async function testDatabase() {
     
     // Test a simple query
     try {
-      const result = db.prepare('SELECT COUNT(*) as count FROM sqlite_master').get();
+      const result = db.prepare('SELECT COUNT(*) as count FROM sqlite_master').get() as { count: number };
       console.log('Database query successful:', result);
       
       // Check if we need to create tables

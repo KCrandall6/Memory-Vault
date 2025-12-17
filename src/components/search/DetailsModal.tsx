@@ -70,7 +70,8 @@ const DetailsModal = ({
 
     const handleDownload = async () => {
     if (!media || (!media.filePath && !media.fileUrl)) return;
-    const sourcePath = media.filePath || media.fileUrl;
+    const sourcePath = media.filePath || media.fileUrl || '';
+    if (!sourcePath) return;
     try {
       await window.electronAPI.downloadMediaFile({
         filePath: sourcePath,
