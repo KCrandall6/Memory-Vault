@@ -117,7 +117,7 @@ return (
                         </span>
                         {media.uploadDate && (
                           <span>
-                            <span className="fw-semibold">Upload Date:</span> {media.uploadDate}
+                            <span className="fw-semibold">Date Uploaded:</span> {media.uploadDate}
                           </span>
                         )}
                       </div>
@@ -139,7 +139,7 @@ return (
 
                   <Row className="g-3">
                     <Col md={6}>
-                      <div className="fw-semibold">Capture Date</div>
+                      <div className="fw-semibold">Date</div>
                       <div className="text-muted">{media.captureDate || '—'}</div>
                     </Col>
                     <Col md={6}>

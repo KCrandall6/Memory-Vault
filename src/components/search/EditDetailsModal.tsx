@@ -173,7 +173,7 @@ const EditDetailsModal = ({
             <Row className="g-3 mt-1">
               <Col md={6}>
                 <Form.Group controlId="captureDate">
-                  <Form.Label>Capture date</Form.Label>
+                  <Form.Label>Date</Form.Label>
                   <Form.Control
                     type="date"
                     value={formState.captureDate || ''}
