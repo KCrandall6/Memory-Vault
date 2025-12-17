@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Container, Row, Col, Card, Badge, Button } from 'react-bootstrap';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Container, Row, Col, Card, Badge, Button, Spinner, Alert } from 'react-bootstrap';
 import FiltersBar from '../components/search/FilterBar';
 import SearchBar, { ReferenceOption, SearchQuery } from '../components/search/SearchBar';
 import DetailsModal, { DetailedMedia } from '../components/search/DetailsModal';
@@ -19,107 +19,11 @@ const initialQuery: SearchQuery = {
   tagsText: '',
 };
 
-const mockMediaTypes: ReferenceOption[] = [
-  { id: 'image', name: 'Image' },
-  { id: 'video', name: 'Video' },
-  { id: 'document', name: 'Document' },
-  { id: 'audio', name: 'Audio' },
-];
-
-const mockCollections: ReferenceOption[] = [
-  { id: '1', name: 'Family' },
-  { id: '2', name: 'Vacations' },
-  { id: '3', name: 'Work' },
-];
-
-const mockPeople: ReferenceOption[] = [
-  { id: 'p1', name: 'Alice' },
-  { id: 'p2', name: 'Bob' },
-  { id: 'p3', name: 'Charlie' },
-];
-
-const mockTags: ReferenceOption[] = [
-  { id: 't1', name: 'Outdoors' },
-  { id: 't2', name: 'Family' },
-  { id: 't3', name: 'Birthday' },
-  { id: 't4', name: 'Travel' },
-];
-
 type SearchResult = DetailedMedia & {
+  id: number;
+  mediaTypeId?: number;
   summary?: string;
 };
-
-const mockResults: SearchResult[] = [
-  {
-    id: 'm1',
-    title: 'Family picnic 1998',
-    thumbnail: 'https://via.placeholder.com/400x250?text=Picnic',
-    captureDate: '1998-06-14',
-    uploadDate: '2023-07-12',
-    collection: 'Family',
-    location: 'Central Park',
-    mediaType: 'image',
-    description: 'Sunny afternoon picnic with the family and cousins.',
-    tags: ['family', 'outdoors'],
-    people: ['Alice', 'Bob', 'Charlie', 'Dana'],
-  },
-  {
-    id: 'm2',
-    title: 'Graduation day',
-    thumbnail: 'https://via.placeholder.com/400x250?text=Graduation',
-    captureDate: '2008-05-30',
-    uploadDate: '2022-09-02',
-    collection: 'Work',
-    location: 'Madison',
-    mediaType: 'image',
-    summary: 'Ceremony photos and program',
-    description: 'Commencement ceremony with friends and the graduation program PDF.',
-    people: ['Erin', 'Frank', 'Grace'],
-    tags: ['milestone', 'school'],
-  },
-  {
-    id: 'm3',
-    title: 'Hiking the Alps',
-    thumbnail: 'https://via.placeholder.com/400x250?text=Alps',
-    captureDate: '2012-09-18',
-    uploadDate: '2021-11-15',
-    collection: 'Vacations',
-    location: 'Switzerland',
-    mediaType: 'image',
-    summary: 'Trail snapshots and summit panorama',
-    description: 'A week-long hike through the Alps with amazing views.',
-    people: ['Hannah', 'Ian'],
-    tags: ['travel', 'mountains'],
-  },
-  {
-    id: 'm4',
-    title: 'Project brief PDF',
-    thumbnail: '',
-    captureDate: '2019-11-02',
-    uploadDate: '2020-01-08',
-    collection: 'Work',
-    location: 'Remote',
-    mediaType: 'document',
-    summary: 'Requirements document for Q4 initiative',
-    tags: ['work', 'planning'],
-    description: 'Project brief outlining goals and timelines.',
-    people: ['Manager'],
-  },
-  {
-    id: 'm5',
-    title: 'Interview audio',
-    thumbnail: '',
-    captureDate: '2015-04-10',
-    uploadDate: '2024-02-20',
-    collection: 'Family',
-    location: 'Phone',
-    mediaType: 'audio',
-    summary: 'Grandma shares family stories',
-    description: 'Audio interview capturing family history anecdotes.',
-    people: ['Grandma', 'Host'],
-    tags: ['family', 'oral history'],
-  },
-];
 
 const mediaTypeIcon: Record<string, string> = {
   image: 'bi-image',
@@ -128,17 +32,73 @@ const mediaTypeIcon: Record<string, string> = {
   audio: 'bi-music-note',
 };
 
-const getThumbnail = (result: SearchResult) => {
-  if (result.thumbnail) return result.thumbnail;
-  return undefined;
-};
+const mapReference = (items: any[] = []): ReferenceOption[] =>
+  items.map((item) => ({ id: String(item.id), name: item.name }));
+
+const normalizeResult = (row: any): SearchResult => ({
+  id: row.id,
+  title: row.title || row.file_name || 'Untitled memory',
+  description: row.description || '',
+  summary: row.description || undefined,
+  captureDate: row.capture_date || '',
+  uploadDate: row.created_at ? String(row.created_at).split('T')[0] : undefined,
+  location: row.location || '',
+  collection: row.collection_name || '',
+  mediaType: row.media_type ? String(row.media_type).toLowerCase() : 'document',
+  mediaTypeId: row.media_type_id,
+  tags: row.tags || [],
+  people: row.people || [],
+  thumbnail: row.thumbnail_path || undefined,
+});
+
+const normalizeDetails = (row: any): DetailedMedia => ({
+  id: String(row.id),
+  title: row.title || row.file_name || 'Untitled memory',
+  description: row.description || '',
+  captureDate: row.capture_date || row.captureDate || '',
+  uploadDate: row.created_at ? String(row.created_at).split('T')[0] : row.uploadDate,
+  location: row.location || '',
+  collection: row.collection_name || row.collection || '',
+  mediaType: row.media_type ? String(row.media_type).toLowerCase() : row.mediaType || 'document',
+  tags: row.tags || [],
+  people: row.people || [],
+  thumbnail: row.thumbnail_path || row.thumbnail || undefined,
+});
 
 const SearchPage = () => {
   const [query, setQuery] = useState<SearchQuery>(initialQuery);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [availableMediaTypes, setAvailableMediaTypes] = useState<ReferenceOption[]>([]);
+  const [availableCollections, setAvailableCollections] = useState<ReferenceOption[]>([]);
+  const [availablePeople, setAvailablePeople] = useState<ReferenceOption[]>([]);
+  const [availableTags, setAvailableTags] = useState<ReferenceOption[]>([]);
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [selected, setSelected] = useState<SearchResult | undefined>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [selected, setSelected] = useState<DetailedMedia | undefined>();
   const [showDetails, setShowDetails] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      try {
+        const [mediaTypes, collections, people, tags] = await Promise.all([
+          window.electronAPI.getMediaTypes(),
+          window.electronAPI.getCollections(),
+          window.electronAPI.getPeople(),
+          window.electronAPI.getTags(),
+        ]);
+        setAvailableMediaTypes(mapReference(mediaTypes));
+        setAvailableCollections(mapReference(collections));
+        setAvailablePeople(mapReference(people));
+        setAvailableTags(mapReference(tags));
+      } catch (err) {
+        console.warn('Error loading reference data', err);
+      }
+    };
+
+    loadReferenceData();
+  }, []);
 
   const handleQueryChange = (partial: Partial<SearchQuery>) => {
     setQuery((prev) => ({ ...prev, ...partial }));
@@ -164,21 +124,77 @@ const SearchPage = () => {
     [query.collections.length, query.mediaTypes.length, query.people.length, query.tags.length]
   );
 
-  const handleSubmit = () => {
-    setResults(mockResults);
+  const handleSubmit = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const criteria = {
+        text: query.text,
+        title: query.title,
+        location: query.location,
+        mediaTypeIds: query.mediaTypes.map((id) => Number(id)).filter(Boolean),
+        collectionIds: query.collections.map((id) => Number(id)).filter(Boolean),
+        tagIds: query.tags.map((id) => Number(id)).filter(Boolean),
+        personIds: query.people.map((id) => Number(id)).filter(Boolean),
+        dateFrom: query.dateFrom || undefined,
+        dateTo: query.dateTo || undefined,
+        peopleText: query.peopleText,
+        tagsText: query.tagsText,
+        sort: query.sort,
+        limit: 25,
+        offset: 0,
+      };
+      const resultsFromDb = await window.electronAPI.searchMedia(criteria);
+      setResults(resultsFromDb.map(normalizeResult));
+      setHasSearched(true);
+    } catch (err) {
+      console.error('Error searching media', err);
+      setError('Unable to run search. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [query]);
+
+  const handleViewDetails = async (result: SearchResult) => {
+    try {
+      const details = await window.electronAPI.getMediaDetails(result.id);
+      const normalized = details ? normalizeDetails(details) : normalizeDetails(result);
+      setSelected(normalized);
+      setShowDetails(true);
+    } catch (err) {
+      console.error('Error loading media details', err);
+      setSelected(normalizeDetails(result));
+      setShowDetails(true);
+    }
   };
 
-  const handleViewDetails = (result: SearchResult) => {
-    setSelected(result);
-    setShowDetails(true);
-  };
-
-  const handleSaveDetails = (updated: DetailedMedia) => {
-    setResults((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
-    setSelected((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+  const handleSaveDetails = async (updated: DetailedMedia) => {
+    try {
+      const payload = {
+        id: Number(updated.id),
+        title: updated.title,
+        description: updated.description,
+        captureDate: updated.captureDate,
+        location: updated.location,
+        collection: updated.collection,
+        tags: updated.tags || [],
+        people: updated.people || [],
+        mediaTypeId: (results.find((item) => item.id === Number(updated.id))?.mediaTypeId) || undefined,
+      };
+      const response = await window.electronAPI.updateMediaDetails(payload);
+      if (response.success && response.media) {
+        const normalized = normalizeDetails(response.media);
+        setSelected(normalized);
+        setResults((prev) => prev.map((item) => (item.id === payload.id ? { ...item, ...normalized } : item)));
+      }
+    } catch (err) {
+      console.error('Error saving media details', err);
+    }
   };
 
   const hasResults = results.length > 0;
+
+  const getThumbnail = (result: SearchResult) => result.thumbnail && result.thumbnail.length > 0 ? result.thumbnail : undefined;
 
   return (
     <Container fluid className="py-4" style={{ maxWidth: '1400px' }}>
@@ -196,29 +212,40 @@ const SearchPage = () => {
         onSubmit={handleSubmit}
         advancedOpen={advancedOpen}
         onToggleAdvanced={() => setAdvancedOpen((prev) => !prev)}
-        availableMediaTypes={mockMediaTypes}
-        availableCollections={mockCollections}
-        availablePeople={mockPeople}
-        availableTags={mockTags}
+        availableMediaTypes={availableMediaTypes}
+        availableCollections={availableCollections}
+        availablePeople={availablePeople}
+        availableTags={availableTags}
       />
 
       {hasResults && (
         <FiltersBar
           query={query}
           onQueryChange={handleQueryChange}
-          availableMediaTypes={mockMediaTypes}
-          availableCollections={mockCollections}
-          availablePeople={mockPeople}
-          availableTags={mockTags}
+          availableMediaTypes={availableMediaTypes}
+          availableCollections={availableCollections}
+          availablePeople={availablePeople}
+          availableTags={availableTags}
           onReset={resetFilters}
         />
+      )}
+
+      {error && (
+        <Alert variant="danger" className="mt-3">
+          {error}
+        </Alert>
       )}
 
       <Row className="mt-4">
         <Col>
           {hasResults ? (
             <Card className="shadow-sm">
-              <Card.Body className="p-0">
+              <Card.Body className="p-0 position-relative">
+                {loading && (
+                  <div className="position-absolute top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center bg-white bg-opacity-75">
+                    <Spinner animation="border" role="status" />
+                  </div>
+                )}
                 {results.map((result) => {
                   const icon = mediaTypeIcon[result.mediaType] ?? 'bi-file-earmark';
                   return (
@@ -253,17 +280,12 @@ const SearchPage = () => {
                               <span>
                                 <span className="fw-semibold">Memory Date:</span> {result.captureDate || '—'}
                               </span>
-                              {result.location && (
                                 <span>
                                   <span className="fw-semibold">Location:</span> {result.location || '—'}
                                 </span>
-                              )}
-                              {result.collection && (
                                 <span>
-                                  <span className="fw-semibold">Collection:</span>{' '}
-                                    {result.collection}
+                                  <span className="fw-semibold">Collection:</span> {result.collection || '—'}
                                 </span>
-                              )}
                             </div>
                             <div className="d-flex flex-wrap gap-3 align-items-center">
                               {result.people && result.people.length > 0 && (
@@ -307,7 +329,7 @@ const SearchPage = () => {
             </Card>
           ) : (
             <div className="bg-white rounded-3 shadow-sm p-4 text-center text-muted">
-              Start by searching for memories using the bar above.
+              {hasSearched ? 'No memories matched your search yet.' : 'Start by searching for memories using the bar above.'}
             </div>
           )}
         </Col>
@@ -318,9 +340,9 @@ const SearchPage = () => {
         media={selected}
         onClose={() => setShowDetails(false)}
         onSaveDetails={handleSaveDetails}
-        availableCollections={mockCollections}
-        availablePeople={mockPeople}
-        availableTags={mockTags}
+        availableCollections={availableCollections}
+        availablePeople={availablePeople}
+        availableTags={availableTags}
       />
     </Container>
   );

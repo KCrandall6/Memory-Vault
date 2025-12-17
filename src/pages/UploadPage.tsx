@@ -134,13 +134,6 @@ const UploadPage = () => {
       isMounted = false;
     };
   }, []);
-  
-  useEffect(() => {
-    if (!statusMessage) return;
-    const timeout = setTimeout(() => setStatusMessage(null), 4000);
-    return () => clearTimeout(timeout);
-  }, [statusMessage]);
-
 
   // Handle file selection
   const handleFilesSelected = (files: File[]) => {

@@ -8,6 +8,9 @@ interface ElectronAPI {
     getCollections: () => Promise<any[]>;
     getTags: () => Promise<any[]>;
     getPeople: () => Promise<any[]>;
+    searchMedia: (criteria: any) => Promise<any[]>;
+    getMediaDetails: (id: number) => Promise<any | null>;
+    updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
   }
   
   declare global {

@@ -167,58 +167,158 @@ function addMedia(mediaData) {
 }
 
 // Search media by various criteria
-function searchMedia(criteria) {
+function buildRelevanceClause({ searchTerm, titleTerm, locationTerm, peopleText, tagsText }) {
+  const clauses = [];
+  const params = [];
+
+  if (searchTerm) {
+    const like = `%${searchTerm}%`;
+    clauses.push(`CASE WHEN LOWER(m.title) LIKE ? THEN 5 ELSE 0 END`);
+    params.push(like);
+    clauses.push(`CASE WHEN LOWER(m.description) LIKE ? THEN 3 ELSE 0 END`);
+    params.push(like);
+    clauses.push(`CASE WHEN LOWER(m.location) LIKE ? THEN 2 ELSE 0 END`);
+    params.push(like);
+  }
+
+  if (titleTerm) {
+    clauses.push(`CASE WHEN LOWER(m.title) LIKE ? THEN 4 ELSE 0 END`);
+    params.push(`%${titleTerm}%`);
+  }
+
+  if (locationTerm) {
+    clauses.push(`CASE WHEN LOWER(m.location) LIKE ? THEN 2 ELSE 0 END`);
+    params.push(`%${locationTerm}%`);
+  }
+
+  if (peopleText) {
+    clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM MediaPeople mp JOIN People p ON p.id = mp.person_id WHERE mp.media_id = m.id AND LOWER(p.name) LIKE ?) THEN 3 ELSE 0 END`);
+    params.push(`%${peopleText}%`);
+  }
+
+  if (tagsText) {
+    clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM MediaTags mt2 JOIN Tags t2 ON t2.id = mt2.tag_id WHERE mt2.media_id = m.id AND LOWER(t2.name) LIKE ?) THEN 2 ELSE 0 END`);
+    params.push(`%${tagsText}%`);
+  }
+
+  const relevanceSql = clauses.length > 0 ? clauses.join(' + ') : '0';
+  return { relevanceSql, relevanceParams: params };
+}
+
+function mapAggregates(row) {
+  return {
+    ...row,
+    media_type: row.media_type,
+    collection_name: row.collection_name,
+    tags: row.tags ? row.tags.split('|').filter(Boolean) : [],
+    people: row.people ? row.people.split('|').filter(Boolean) : [],
+  };
+}
+
+function searchMedia(criteria = {}) {
   try {
     if (!db) return [];
-    
+
+    const {
+      text,
+      title,
+      location,
+      mediaTypeIds = [],
+      collectionIds = [],
+      tagIds = [],
+      personIds = [],
+      dateFrom,
+      dateTo,
+      peopleText,
+      tagsText,
+      sort = 'newest',
+      limit = 25,
+      offset = 0
+    } = criteria;
+
+    const searchTerm = text ? text.toLowerCase().trim() : '';
+    const titleTerm = title ? title.toLowerCase().trim() : '';
+    const locationTerm = location ? location.toLowerCase().trim() : '';
+    const peopleTerm = peopleText ? peopleText.toLowerCase().trim() : '';
+    const tagsTerm = tagsText ? tagsText.toLowerCase().trim() : '';
+
+    const { relevanceSql, relevanceParams } = buildRelevanceClause({
+      searchTerm,
+      titleTerm,
+      locationTerm,
+      peopleText: peopleTerm,
+      tagsText: tagsTerm
+    });
+
     let query = `
-      SELECT m.*, mt.name as media_type, st.name as source_type, c.name as collection_name
+      SELECT
+        m.id,
+        m.title,
+        m.description,
+        m.capture_date,
+        m.created_at,
+        m.location,
+        m.file_path,
+        m.thumbnail_path,
+        m.media_type_id,
+        mt.name as media_type,
+        c.name as collection_name,
+        REPLACE(GROUP_CONCAT(DISTINCT t.name), ',', '|') as tags,
+        REPLACE(GROUP_CONCAT(DISTINCT p.name), ',', '|') as people,
+        ${relevanceSql} as relevance
       FROM Media m
       LEFT JOIN MediaTypes mt ON m.media_type_id = mt.id
       LEFT JOIN SourceTypes st ON m.source_type_id = st.id
       LEFT JOIN Collections c ON m.collection_id = c.id
+      LEFT JOIN MediaTags mtg ON m.id = mtg.media_id
+      LEFT JOIN Tags t ON mtg.tag_id = t.id
+      LEFT JOIN MediaPeople mp ON m.id = mp.media_id
+      LEFT JOIN People p ON mp.person_id = p.id
       WHERE 1=1
     `;
-    
-    const params = [];
-    
-    if (criteria.searchTerm) {
-      query += ` AND (
-        m.title LIKE ? OR
-        m.description LIKE ? OR
-        m.location LIKE ?
-      )`;
-      const searchTerm = `%${criteria.searchTerm}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+
+    const params = [...relevanceParams];
+
+    if (searchTerm) {
+      const like = `%${searchTerm}%`;
+      query += ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.location) LIKE ?)`;
+      params.push(like, like, like);
     }
-    
-    if (criteria.mediaTypeId) {
-      query += ` AND m.media_type_id = ?`;
-      params.push(criteria.mediaTypeId);
+
+    if (titleTerm) {
+      query += ` AND LOWER(m.title) LIKE ?`;
+      params.push(`%${titleTerm}%`);
     }
-    
-    if (criteria.sourceTypeId) {
-      query += ` AND m.source_type_id = ?`;
-      params.push(criteria.sourceTypeId);
+
+    if (locationTerm) {
+      query += ` AND LOWER(m.location) LIKE ?`;
+      params.push(`%${locationTerm}%`);
     }
-    
-    if (criteria.collectionId) {
-      query += ` AND m.collection_id = ?`;
-      params.push(criteria.collectionId);
+
+    if (mediaTypeIds.length > 0) {
+      const placeholders = mediaTypeIds.map(() => '?').join(',');
+      query += ` AND m.media_type_id IN (${placeholders})`;
+      params.push(...mediaTypeIds);
     }
-    
-    if (criteria.startDate) {
+
+    if (collectionIds.length > 0) {
+      const placeholders = collectionIds.map(() => '?').join(',');
+      query += ` AND m.collection_id IN (${placeholders})`;
+      params.push(...collectionIds);
+    }
+
+    if (dateFrom) {
       query += ` AND m.capture_date >= ?`;
-      params.push(criteria.startDate);
+      params.push(dateFrom);
     }
-    
-    if (criteria.endDate) {
+
+    if (dateTo) {
       query += ` AND m.capture_date <= ?`;
-      params.push(criteria.endDate);
+      params.push(dateTo);
     }
-    
-    if (criteria.tagIds && criteria.tagIds.length > 0) {
-      const placeholders = criteria.tagIds.map(() => '?').join(',');
+
+    if (tagIds.length > 0) {
+      const placeholders = tagIds.map(() => '?').join(',');
       query += `
         AND m.id IN (
           SELECT media_id
@@ -228,11 +328,11 @@ function searchMedia(criteria) {
           HAVING COUNT(DISTINCT tag_id) = ?
         )
       `;
-      params.push(...criteria.tagIds, criteria.tagIds.length);
+      params.push(...tagIds, tagIds.length);
     }
-    
-    if (criteria.personIds && criteria.personIds.length > 0) {
-      const placeholders = criteria.personIds.map(() => '?').join(',');
+
+    if (personIds.length > 0) {
+      const placeholders = personIds.map(() => '?').join(',');
       query += `
         AND m.id IN (
           SELECT media_id
@@ -242,23 +342,41 @@ function searchMedia(criteria) {
           HAVING COUNT(DISTINCT person_id) = ?
         )
       `;
-      params.push(...criteria.personIds, criteria.personIds.length);
+      params.push(...personIds, personIds.length);
     }
-    
-    query += ` ORDER BY m.created_at DESC`;
-    
-    if (criteria.limit) {
-      query += ` LIMIT ?`;
-      params.push(criteria.limit);
+
+    if (peopleTerm) {
+      query += ` AND EXISTS (SELECT 1 FROM MediaPeople mp2 JOIN People p2 ON p2.id = mp2.person_id WHERE mp2.media_id = m.id AND LOWER(p2.name) LIKE ?)`;
+      params.push(`%${peopleTerm}%`);
     }
-    
-    if (criteria.offset) {
-      query += ` OFFSET ?`;
-      params.push(criteria.offset);
+
+    if (tagsTerm) {
+      query += ` AND EXISTS (SELECT 1 FROM MediaTags mt2 JOIN Tags t2 ON t2.id = mt2.tag_id WHERE mt2.media_id = m.id AND LOWER(t2.name) LIKE ?)`;
+      params.push(`%${tagsTerm}%`);
     }
-    
+
+    query += ' GROUP BY m.id';
+
+    const sortClause = (() => {
+      switch (sort) {
+        case 'oldest':
+          return 'CASE WHEN m.capture_date IS NULL THEN 1 ELSE 0 END, m.capture_date ASC, m.created_at ASC';
+        case 'title':
+          return 'LOWER(m.title) ASC';
+        case 'type':
+          return 'LOWER(mt.name) ASC, m.created_at DESC';
+        default:
+          return 'relevance DESC, CASE WHEN m.capture_date IS NULL THEN 1 ELSE 0 END, m.capture_date DESC, m.created_at DESC';
+      }
+    })();
+
+    query += ` ORDER BY ${sortClause}`;
+    query += ' LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
     const stmt = db.prepare(query);
-    return stmt.all(...params);
+    const rows = stmt.all(...params);
+    return rows.map(mapAggregates);
   } catch (error) {
     console.error('Error searching media:', error);
     return [];
@@ -323,6 +441,116 @@ function getMediaPeople(mediaId) {
   } catch (error) {
     console.error('Error getting media people:', error);
     return [];
+  }
+}
+
+function getMediaDetails(id) {
+  try {
+    if (!db) return null;
+
+    const stmt = db.prepare(`
+      SELECT
+        m.id,
+        m.title,
+        m.description,
+        m.capture_date,
+        m.created_at,
+        m.location,
+        m.file_path,
+        m.thumbnail_path,
+        m.media_type_id,
+        mt.name as media_type,
+        c.name as collection_name,
+        REPLACE(GROUP_CONCAT(DISTINCT t.name), ',', '|') as tags,
+        REPLACE(GROUP_CONCAT(DISTINCT p.name), ',', '|') as people
+      FROM Media m
+      LEFT JOIN MediaTypes mt ON m.media_type_id = mt.id
+      LEFT JOIN Collections c ON m.collection_id = c.id
+      LEFT JOIN MediaTags mtg ON m.id = mtg.media_id
+      LEFT JOIN Tags t ON mtg.tag_id = t.id
+      LEFT JOIN MediaPeople mp ON m.id = mp.media_id
+      LEFT JOIN People p ON mp.person_id = p.id
+      WHERE m.id = ?
+      GROUP BY m.id
+    `);
+
+    const row = stmt.get(id);
+    if (!row) return null;
+    return mapAggregates(row);
+  } catch (error) {
+    console.error('Error getting media details:', error);
+    return null;
+  }
+}
+
+function resolveCollectionId(collection) {
+  if (collection === null || collection === undefined || collection === '') return null;
+  if (typeof collection === 'number') return collection;
+  const existing = db.prepare('SELECT id FROM Collections WHERE LOWER(name) = LOWER(?)').get(collection);
+  if (existing) return existing.id;
+  return addCollection(collection, '');
+}
+
+function replaceMediaTags(mediaId, tags = []) {
+  db.prepare('DELETE FROM MediaTags WHERE media_id = ?').run(mediaId);
+  if (!tags || tags.length === 0) return;
+
+  const linkStmt = db.prepare('INSERT OR IGNORE INTO MediaTags (media_id, tag_id) VALUES (?, ?)');
+  tags.forEach((tagName) => {
+    const tagId = addTag(tagName);
+    linkStmt.run(mediaId, tagId);
+  });
+}
+
+function replaceMediaPeople(mediaId, people = []) {
+  db.prepare('DELETE FROM MediaPeople WHERE media_id = ?').run(mediaId);
+  if (!people || people.length === 0) return;
+
+  const linkStmt = db.prepare('INSERT OR IGNORE INTO MediaPeople (media_id, person_id) VALUES (?, ?)');
+  people.forEach((personName) => {
+    const personId = addPerson(personName);
+    linkStmt.run(mediaId, personId);
+  });
+}
+
+function updateMediaWithRelations(id, mediaData) {
+  try {
+    if (!db) throw new Error('Database not initialized');
+
+    db.prepare('BEGIN').run();
+
+    const collectionId = resolveCollectionId(mediaData.collection);
+
+    const stmt = db.prepare(`
+      UPDATE Media SET
+        title = ?,
+        description = ?,
+        capture_date = ?,
+        location = ?,
+        collection_id = ?,
+        media_type_id = COALESCE(?, media_type_id)
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      mediaData.title,
+      mediaData.description,
+      mediaData.capture_date || null,
+      mediaData.location || null,
+      collectionId,
+      mediaData.media_type_id || null,
+      id
+    );
+
+    replaceMediaTags(id, mediaData.tags || []);
+    replaceMediaPeople(id, mediaData.people || []);
+
+    db.prepare('COMMIT').run();
+    return getMediaDetails(id);
+  } catch (error) {
+    db?.prepare('ROLLBACK').run();
+    console.error('Error updating media with relations:', error);
+    throw error;
   }
 }
 
@@ -558,6 +786,8 @@ function deleteMedia(id) {
 module.exports = {
   getAllMedia,
   addMedia,
+  searchMedia,
+  getMediaDetails,
   getMediaTypes,
   getSourceTypes,
   getCollections,
@@ -567,5 +797,6 @@ module.exports = {
   addPerson,
   linkTagToMedia,
   linkPersonToMedia,
-  addCollection
+  addCollection,
+  updateMediaWithRelations
 };

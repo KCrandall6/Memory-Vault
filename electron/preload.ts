@@ -10,6 +10,11 @@ interface ElectronAPI {
   getCollections: () => Promise<any[]>;
   getTags: () => Promise<any[]>;
   getPeople: () => Promise<any[]>;
+  searchMedia: (criteria: any) => Promise<any[]>;
+  getMediaDetails: (id: number) => Promise<any | null>;
+  updateMediaDetails: (
+    payload: any
+  ) => Promise<{ success: boolean; media?: any; error?: string }>;
   onMainProcessMessage: (callback: (...args: any[]) => void) => void;
 }
 
@@ -25,6 +30,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCollections: () => ipcRenderer.invoke('get-collections'),
   getTags: () => ipcRenderer.invoke('get-tags'),
   getPeople: () => ipcRenderer.invoke('get-people'),
+  searchMedia: (criteria) => ipcRenderer.invoke('search-media', criteria),
+  getMediaDetails: (id) => ipcRenderer.invoke('get-media-details', id),
+  updateMediaDetails: (payload) => ipcRenderer.invoke('update-media-details', payload),
   
   // Event listeners
   onMainProcessMessage: (callback) => {

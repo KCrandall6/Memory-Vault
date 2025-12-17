@@ -150,6 +150,43 @@ function setupIpcHandlers() {
     }
   });
   
+    ipcMain.handle('search-media', async (_event, criteria) => {
+    try {
+      return await dbOperations.searchMedia(criteria);
+    } catch (error) {
+      console.error('Error searching media:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-media-details', async (_event, id: number) => {
+    try {
+      return await dbOperations.getMediaDetails(id);
+    } catch (error) {
+      console.error('Error fetching media details:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('update-media-details', async (_event, payload) => {
+    try {
+      const updated = await dbOperations.updateMediaWithRelations(payload.id, {
+        title: payload.title,
+        description: payload.description,
+        capture_date: payload.captureDate || null,
+        location: payload.location || null,
+        collection: payload.collection || null,
+        tags: payload.tags || [],
+        people: payload.people || [],
+        media_type_id: payload.mediaTypeId ? Number(payload.mediaTypeId) : null
+      });
+      return { success: true, media: updated };
+    } catch (error) {
+      console.error('Error updating media details:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
   // Save media handler
   ipcMain.handle('save-media', async (_, data) => {
     try {
@@ -204,12 +241,13 @@ function setupIpcHandlers() {
       // Process people
       if (data.metadata.people && data.metadata.people.length > 0) {
         for (const person of data.metadata.people) {
-          // If person has negative ID, it's a new person
-          const personId = person.id < 0 
+          if (!person?.name) continue;
+
+          const resolvedId = typeof person.id !== 'number' || person.id < 0
             ? await dbOperations.addPerson(person.name)
-            : person.id;
-          
-          await dbOperations.linkPersonToMedia(mediaId, personId);
+            : Number(person.id);
+
+          await dbOperations.linkPersonToMedia(mediaId, resolvedId);
         }
       }
       
