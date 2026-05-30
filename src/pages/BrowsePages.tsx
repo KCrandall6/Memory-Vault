@@ -16,7 +16,7 @@ type BrowseSummary = {
   rawName: string;
   description?: string;
   rawDescription?: string;
-  isDefaultCollection?: boolean;
+  isSystemGrouping?: boolean;
   mediaCount: number;
   startYear?: string;
   endYear?: string;
@@ -66,16 +66,21 @@ const readString = (row: Record<string, unknown>, key: string) => {
 const normalizeSummary = (row: Record<string, unknown>, kind: BrowseKind): BrowseSummary => {
   const year = readString(row, 'year');
   const rawName = kind === 'dates' ? String(year || 'Unknown year') : String(row.name || 'Untitled');
-  const isDefaultCollection = kind === 'collections' && rawName.toLowerCase() === 'general';
+  const normalizedName = rawName.trim().toLowerCase();
+  const isSystemGrouping = kind === 'collections' && (
+    row.is_system_grouping === 1 ||
+    row.isSystemGrouping === true ||
+    ['general', 'unfiled memories', 'ungrouped memories'].includes(normalizedName)
+  );
   const rawDescription = readString(row, 'description');
 
   return {
     id: String(row.id || year || ''),
-    name: isDefaultCollection ? 'Unfiled Memories' : rawName,
+    name: isSystemGrouping ? 'Ungrouped Memories' : rawName,
     rawName,
-    description: rawDescription || (isDefaultCollection ? 'Memories not assigned to a specific collection.' : undefined),
+    description: rawDescription || (isSystemGrouping ? 'Memories without a collection.' : undefined),
     rawDescription,
-    isDefaultCollection,
+    isSystemGrouping,
     mediaCount: Number(row.media_count || row.mediaCount || 0),
     startYear: readString(row, 'start_year') || readString(row, 'startYear'),
     endYear: readString(row, 'end_year') || readString(row, 'endYear'),
@@ -142,14 +147,13 @@ const BrowseCard = ({ item, kind, selected, onClick }: { item: BrowseSummary; ki
   const range = yearRangeLabel(item);
 
   return (
-    <button type="button" className={`browse-card ${kind === 'collections' ? 'browse-card--collection' : ''} ${item.isDefaultCollection ? 'browse-card--default' : ''} ${selected ? 'browse-card--selected' : ''}`} onClick={onClick}>
+    <button type="button" className={`browse-card ${kind === 'collections' ? 'browse-card--collection' : ''} ${item.isSystemGrouping ? 'browse-card--system' : ''} ${selected ? 'browse-card--selected' : ''}`} onClick={onClick}>
       <div className="browse-card__cover">
         <BrowseCover item={item} icon={config.icon} />
       </div>
       <div className="browse-card__body">
         <h3>{item.name}</h3>
         {item.description && <p>{item.description}</p>}
-        {item.isDefaultCollection && <Badge bg="warning" text="dark" className="mb-2">Default collection</Badge>}
         <div className="browse-card__meta">
           <Badge bg="light" text="dark">{pluralizeMemories(item.mediaCount)}</Badge>
           {range && <span>{range}</span>}
@@ -182,7 +186,7 @@ const fetchSummaries = (kind: BrowseKind) => {
 const fetchMedia = (kind: BrowseKind, selected: BrowseSummary) => {
   switch (kind) {
     case 'collections':
-      return window.electronAPI.getCollectionMedia(Number(selected.id));
+      return window.electronAPI.getCollectionMedia(selected.isSystemGrouping ? selected.id : Number(selected.id));
     case 'people':
       return window.electronAPI.getPersonMedia(Number(selected.id));
     case 'tags':
@@ -307,7 +311,11 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
     }
   };
 
-  const selectedTitle = selected ? `${selected.name} memories` : `Choose ${config.title.toLowerCase()}`;
+  const selectedTitle = selected
+    ? selected.isSystemGrouping
+      ? 'Ungrouped Memories'
+      : `${selected.name} memories`
+    : `Choose ${config.title.toLowerCase()}`;
   const iconForEmpty = useMemo(() => mediaTypeIcon.unknown, []);
 
   return (
@@ -370,22 +378,26 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
               <div>
                 <div className="text-muted small mb-1">Collection details</div>
                 <p className="mb-0">{selected.description || 'No description yet.'}</p>
-                {selected.mediaCount > 0 && (
+                {selected.isSystemGrouping ? (
+                  <div className="text-muted small mt-2">This is a system grouping for memories that do not belong to a collection.</div>
+                ) : selected.mediaCount > 0 && (
                   <div className="text-muted small mt-2">Delete is available only when a collection is empty.</div>
                 )}
               </div>
-              <div className="d-flex flex-wrap gap-2">
-                <Button variant="outline-primary" size="sm" onClick={openEditCollection}>Edit collection</Button>
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  disabled={selected.mediaCount > 0}
-                  title={selected.mediaCount > 0 ? 'Move memories out of this collection before deleting it.' : undefined}
-                  onClick={() => setShowDeleteCollection(true)}
-                >
-                  Delete collection
-                </Button>
-              </div>
+              {!selected.isSystemGrouping && (
+                <div className="d-flex flex-wrap gap-2">
+                  <Button variant="outline-primary" size="sm" onClick={openEditCollection}>Edit collection</Button>
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    disabled={selected.mediaCount > 0}
+                    title={selected.mediaCount > 0 ? 'Move memories out of this collection before deleting it.' : undefined}
+                    onClick={() => setShowDeleteCollection(true)}
+                  >
+                    Delete collection
+                  </Button>
+                </div>
+              )}
             </Card.Body>
           </Card>
         )}

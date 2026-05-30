@@ -136,7 +136,7 @@ export const normalizeRecentMedia = (row: RecentMediaRow): RecentMediaItem => {
     fileName: readString(row, 'file_name') || readString(row, 'fileName') || '',
     mediaType: inferMediaType(row),
     mediaTypeId,
-    collection: readString(row, 'collection_name') || readString(row, 'collection'),
+    collection: readString(row, 'collection_name') || readString(row, 'collection') || 'Ungrouped Memories',
     captureDate: readString(row, 'capture_date') || readString(row, 'captureDate'),
     createdAt: readString(row, 'created_at') || readString(row, 'createdAt'),
     thumbnailUrl: isSafePreviewUrl(thumbnailUrl) ? thumbnailUrl : undefined,

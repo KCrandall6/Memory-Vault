@@ -20,7 +20,7 @@ export const normalizeDetailedMedia = (row: Record<string, unknown>): DetailedMe
   captureDate: String(row.capture_date || row.captureDate || ''),
   uploadDate: row.created_at ? String(row.created_at).split('T')[0] : String(row.uploadDate || ''),
   location: String(row.location || ''),
-  collection: String(row.collection_name || row.collection || ''),
+  collection: String(row.collection_name || row.collection || 'Ungrouped Memories'),
   mediaType: row.media_type ? String(row.media_type).toLowerCase() : String(row.mediaType || 'unknown').toLowerCase(),
   mediaTypeId: typeof row.media_type_id === 'number' ? row.media_type_id : Number(row.mediaTypeId) || undefined,
   tags: Array.isArray(row.tags) ? row.tags.map(String) : [],

@@ -17,7 +17,7 @@ interface ElectronAPI {
   searchMedia: (criteria: any) => Promise<any[]>;
   getDashboardSummary: () => Promise<DashboardSummary>;
   getCollectionSummaries: () => Promise<any[]>;
-  getCollectionMedia: (collectionId: number) => Promise<any[]>;
+  getCollectionMedia: (collectionId: number | string) => Promise<any[]>;
   getPeopleSummaries: () => Promise<any[]>;
   getPersonMedia: (personId: number) => Promise<any[]>;
   getTagSummaries: () => Promise<any[]>;

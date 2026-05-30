@@ -219,7 +219,7 @@ function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('get-collection-media', async (_event, collectionId: number) => {
+  ipcMain.handle('get-collection-media', async (_event, collectionId: number | string) => {
     try {
       return await dbOperations.getCollectionMedia(collectionId);
     } catch (error) {
