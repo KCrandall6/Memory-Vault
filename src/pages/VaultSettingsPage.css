@@ -81,6 +81,224 @@
   font-size: 1.45rem;
 }
 
+
+.vault-settings-primary-location {
+  padding: 1.15rem;
+  border: 1px solid #dbe8f5;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
+}
+
+.vault-settings-primary-location span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #4a6fa5;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vault-settings-primary-location code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #10243c;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 800;
+  white-space: normal;
+}
+
+.vault-settings-primary-location p {
+  max-width: 760px;
+  margin: 0.65rem 0 0;
+  color: #64748b;
+}
+
+.vault-settings-technical-details {
+  margin-top: 1rem;
+  border-top: 1px solid #eef3f8;
+}
+
+.vault-settings-technical-details summary {
+  padding: 0.85rem 0 0;
+  color: #1e3a5f;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.vault-settings-technical-details .vault-settings-path-row:first-of-type {
+  margin-top: 0.65rem;
+}
+
+.vault-settings-storage-overview {
+  display: grid;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5edf6;
+  border-radius: 18px;
+  background: #fbfdff;
+}
+
+.vault-settings-storage-overview__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.vault-settings-storage-overview__summary strong {
+  color: #1e3a5f;
+  font-size: 1.15rem;
+}
+
+.vault-settings-storage-overview__summary span {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.vault-settings-storage-bar {
+  display: flex;
+  overflow: hidden;
+  min-height: 24px;
+  border: 1px solid #dbe8f5;
+  border-radius: 999px;
+  background: #eef3f8;
+}
+
+.vault-settings-storage-bar__segment {
+  min-height: 100%;
+  transition: opacity 160ms ease;
+}
+
+.vault-settings-storage-bar__segment:hover {
+  opacity: 0.82;
+}
+
+.vault-settings-storage-bar__segment--archive {
+  background: #2563eb;
+}
+
+.vault-settings-storage-bar__segment--database {
+  background: #0f766e;
+}
+
+.vault-settings-storage-bar__segment--other {
+  background: #94a3b8;
+}
+
+.vault-settings-storage-bar__segment--free {
+  background: #dcfce7;
+}
+
+.vault-settings-storage-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 1rem;
+}
+
+.vault-settings-storage-legend > div {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: center;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.vault-settings-storage-legend strong {
+  color: #334155;
+}
+
+.vault-settings-storage-legend__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+}
+
+.vault-settings-metric-grid--storage {
+  margin-top: 1rem;
+}
+
+.vault-settings-metric--blue {
+  --metric-bg: #eff6ff;
+  --metric-border: #dbeafe;
+  --metric-icon-bg: #dbeafe;
+  --metric-icon-color: #1d4ed8;
+}
+
+.vault-settings-metric--teal {
+  --metric-bg: #f0fdfa;
+  --metric-border: #ccfbf1;
+  --metric-icon-bg: #ccfbf1;
+  --metric-icon-color: #0f766e;
+}
+
+.vault-settings-metric--purple {
+  --metric-bg: #f5f3ff;
+  --metric-border: #ede9fe;
+  --metric-icon-bg: #ede9fe;
+  --metric-icon-color: #6d28d9;
+}
+
+.vault-settings-metric--rose {
+  --metric-bg: #fff1f2;
+  --metric-border: #ffe4e6;
+  --metric-icon-bg: #ffe4e6;
+  --metric-icon-color: #be123c;
+}
+
+.vault-settings-metric--indigo {
+  --metric-bg: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  --metric-border: #c7d2fe;
+  --metric-icon-bg: #c7d2fe;
+  --metric-icon-color: #3730a3;
+}
+
+.vault-settings-metric--green {
+  --metric-bg: #f0fdf4;
+  --metric-border: #dcfce7;
+  --metric-icon-bg: #dcfce7;
+  --metric-icon-color: #15803d;
+}
+
+.vault-settings-metric--slate {
+  --metric-bg: #f8fafc;
+  --metric-border: #e2e8f0;
+  --metric-icon-bg: #e2e8f0;
+  --metric-icon-color: #475569;
+}
+
+.vault-settings-metric--featured {
+  min-height: 104px;
+}
+
+.vault-settings-metric--featured strong {
+  font-size: 2rem;
+}
+
+.vault-settings-stat-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #eef3f8;
+}
+
+.vault-settings-stat-group > span {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vault-settings-stat-group--organization {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .vault-settings-path-row {
   display: grid;
   grid-template-columns: minmax(140px, 190px) 1fr;
@@ -128,11 +346,15 @@
   font-weight: 700;
 }
 
-.vault-settings-metric-grid,
-.vault-settings-totals-grid {
+.vault-settings-metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
+}
+
+.vault-settings-totals-grid {
+  display: grid;
+  gap: 1rem;
 }
 
 .vault-settings-metric {
@@ -141,9 +363,9 @@
   align-items: center;
   min-height: 86px;
   padding: 0.9rem;
-  border: 1px solid #eef3f8;
+  border: 1px solid var(--metric-border, #eef3f8);
   border-radius: 16px;
-  background: #fbfdff;
+  background: var(--metric-bg, #fbfdff);
 }
 
 .vault-settings-metric__icon {
@@ -154,8 +376,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  background: #fff4cc;
-  color: #946900;
+  background: var(--metric-icon-bg, #fff4cc);
+  color: var(--metric-icon-color, #946900);
   font-size: 1.25rem;
 }
 
@@ -243,7 +465,10 @@
 
   .vault-settings-path-row,
   .vault-settings-metric-grid,
-  .vault-settings-totals-grid {
+  .vault-settings-totals-grid,
+  .vault-settings-stat-group,
+  .vault-settings-stat-group--organization,
+  .vault-settings-storage-legend {
     grid-template-columns: 1fr;
   }
 }
