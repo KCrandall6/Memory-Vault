@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Col, Modal, Row } from 'react-bootstrap';
 import ConfirmationModal from '../common/ConfirmationModal';
+import { isRendererSafePreviewUrl } from '../recent/recentMedia';
 import EditDetailsModal, { EditableDetails } from './EditDetailsModal';
 import { ReferenceOption } from './SearchBar';
 
@@ -55,13 +56,16 @@ const DetailsModal = ({
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   const previewSource = useMemo(() => {
-    if (!media) return undefined;
-    if (media.thumbnail && media.thumbnail.length > 0) return media.thumbnail;
-    if (media.fileUrl && media.fileUrl.length > 0) return media.fileUrl;
+    if (!media || previewFailed) return undefined;
+    if (media.thumbnail && isRendererSafePreviewUrl(media.thumbnail)) return media.thumbnail;
+    if (media.fileUrl && isRendererSafePreviewUrl(media.fileUrl)) return media.fileUrl;
     return undefined;
-  }, [media]);
+  }, [media, previewFailed]);
+
+  const handleImageError = () => setPreviewFailed(true);
 
   const handleSave = (details: EditableDetails) => {
     if (!media) return;
@@ -109,6 +113,10 @@ const DetailsModal = ({
     ? media.mediaType.charAt(0).toUpperCase() + media.mediaType.slice(1)
     : '';
 
+  useEffect(() => {
+    setPreviewFailed(false);
+  }, [media?.id, media?.thumbnail, media?.fileUrl]);
+
   return (
     <>
       <Modal show={show} onHide={onClose} fullscreen centered>
@@ -127,6 +135,7 @@ const DetailsModal = ({
                         alt={media.title}
                         className="img-fluid rounded"
                         style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                        onError={handleImageError}
                       />
                     ) : (
                       <i className={`bi ${icon} display-4 text-muted`}></i>
@@ -248,6 +257,7 @@ const DetailsModal = ({
               alt={media?.title}
               className="img-fluid"
               style={{ maxHeight: '95vh', objectFit: 'contain' }}
+              onError={handleImageError}
             />
           ) : (
             <div className="text-white">No preview available</div>

@@ -3,6 +3,8 @@ import { Container, Row, Col, Card, Badge, Button, Spinner, Alert } from 'react-
 import FiltersBar from '../components/search/FilterBar';
 import SearchBar, { ReferenceOption, SearchQuery } from '../components/search/SearchBar';
 import DetailsModal, { DetailedMedia } from '../components/search/DetailsModal';
+import { isRendererSafePreviewUrl } from '../components/recent/recentMedia';
+import { resolveDetailPreview } from '../hooks/useMemoryDetails';
 
 const initialQuery: SearchQuery = {
   text: '',
@@ -205,21 +207,7 @@ const SearchPage = () => {
   const handleViewDetails = async (result: SearchResult) => {
     try {
       const details = await window.electronAPI.getMediaDetails(Number(result.id));
-      let normalized = details ? normalizeDetails(details) : normalizeDetails(result);
-
-      const previewCandidate =
-        normalized.thumbnail || normalized.fileUrl || normalized.filePath || result.thumbnail || result.fileUrl || result.filePath;
-
-      if (previewCandidate && window.electronAPI?.getFilePreview && !normalized.thumbnail?.startsWith('data:')) {
-        try {
-          const preview = await window.electronAPI.getFilePreview(previewCandidate);
-          if (preview?.dataUrl) {
-            normalized = { ...normalized, thumbnail: preview.dataUrl };
-          }
-        } catch (err) {
-          console.warn('Error fetching detail preview', err);
-        }
-      }
+      const normalized = await resolveDetailPreview(details ? normalizeDetails(details) : normalizeDetails(result));
 
       setSelected(normalized);
       setShowDetails(true);
@@ -255,7 +243,7 @@ const SearchPage = () => {
       };
       const response = await window.electronAPI.updateMediaDetails(payload);
       if (response.success && response.media) {
-        const normalized = normalizeDetails(response.media);
+        const normalized = await resolveDetailPreview(normalizeDetails(response.media));
         setSelected(normalized);
         setResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
         setResolvedResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
@@ -268,8 +256,8 @@ const SearchPage = () => {
   const hasResults = results.length > 0;
 
   const getThumbnail = (result: SearchResult) => {
-    if (result.thumbnail && result.thumbnail.length > 0) return result.thumbnail;
-    if (result.fileUrl && result.fileUrl.length > 0) return result.fileUrl;
+    if (result.thumbnail && isRendererSafePreviewUrl(result.thumbnail)) return result.thumbnail;
+    if (result.fileUrl && isRendererSafePreviewUrl(result.fileUrl)) return result.fileUrl;
     return undefined;
   };
 

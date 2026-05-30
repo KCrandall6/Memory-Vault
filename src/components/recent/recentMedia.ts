@@ -82,6 +82,7 @@ const readNumber = (row: RecentMediaRow, key: string) => {
 };
 
 export const isSafePreviewUrl = (value?: string) => Boolean(value && /^(data:|blob:|file:\/\/|https?:\/\/)/i.test(value));
+export const isRendererSafePreviewUrl = (value?: string) => Boolean(value && /^(data:|blob:|https?:\/\/)/i.test(value));
 
 const extractExtension = (value?: string) => value?.split(/[?#]/)[0].split('.').pop()?.toLowerCase();
 

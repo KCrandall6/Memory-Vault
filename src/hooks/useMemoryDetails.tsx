@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import DetailsModal, { DetailedMedia } from '../components/search/DetailsModal';
 import { ReferenceOption } from '../components/search/SearchBar';
-import { RecentMediaItem } from '../components/recent/recentMedia';
+import { isRendererSafePreviewUrl, isSafePreviewUrl, RecentMediaItem } from '../components/recent/recentMedia';
 
 type ReferenceRow = { id: number | string; name: string };
 
@@ -13,22 +13,62 @@ type UseMemoryDetailsOptions = {
 const mapReference = (items: ReferenceRow[] = []): ReferenceOption[] =>
   items.map((item) => ({ id: String(item.id), name: item.name }));
 
-export const normalizeDetailedMedia = (row: Record<string, unknown>): DetailedMedia => ({
-  id: String(row.id),
-  title: String(row.title || row.file_name || 'Untitled memory'),
-  description: String(row.description || ''),
-  captureDate: String(row.capture_date || row.captureDate || ''),
-  uploadDate: row.created_at ? String(row.created_at).split('T')[0] : String(row.uploadDate || ''),
-  location: String(row.location || ''),
-  collection: String(row.collection_name || row.collection || 'Ungrouped Memories'),
-  mediaType: row.media_type ? String(row.media_type).toLowerCase() : String(row.mediaType || 'unknown').toLowerCase(),
-  mediaTypeId: typeof row.media_type_id === 'number' ? row.media_type_id : Number(row.mediaTypeId) || undefined,
-  tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
-  people: Array.isArray(row.people) ? row.people.map(String) : [],
-  thumbnail: row.thumbnail_url ? String(row.thumbnail_url) : row.thumbnail ? String(row.thumbnail) : undefined,
-  filePath: row.file_path ? String(row.file_path) : row.filePath ? String(row.filePath) : undefined,
-  fileUrl: row.file_url ? String(row.file_url) : row.fileUrl ? String(row.fileUrl) : undefined,
-});
+const readString = (row: Record<string, unknown>, ...keys: string[]) => {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+};
+
+export const getSafePreviewSource = (media?: Pick<DetailedMedia, 'thumbnail' | 'fileUrl'>) => {
+  if (!media) return undefined;
+  if (media.thumbnail && isRendererSafePreviewUrl(media.thumbnail)) return media.thumbnail;
+  if (media.fileUrl && isRendererSafePreviewUrl(media.fileUrl)) return media.fileUrl;
+  return undefined;
+};
+
+export const resolveDetailPreview = async (media: DetailedMedia): Promise<DetailedMedia> => {
+  const existingPreview = getSafePreviewSource(media);
+  if (existingPreview) return media;
+
+  const candidate = [media.thumbnail, media.fileUrl, media.filePath].find(Boolean);
+  if (!candidate || !window.electronAPI?.getFilePreview) return media;
+
+  try {
+    const preview = await window.electronAPI.getFilePreview(candidate);
+    if (preview?.dataUrl) {
+      return { ...media, thumbnail: preview.dataUrl };
+    }
+  } catch (err) {
+    console.warn('Error fetching detail preview', err);
+  }
+
+  return media;
+};
+
+
+export const normalizeDetailedMedia = (row: Record<string, unknown>): DetailedMedia => {
+  const thumbnail = readString(row, 'thumbnail_url', 'thumbnailUrl', 'thumbnail');
+  const fileUrl = readString(row, 'file_url', 'fileUrl');
+
+  return {
+    id: String(row.id),
+    title: String(row.title || row.file_name || 'Untitled memory'),
+    description: String(row.description || ''),
+    captureDate: String(row.capture_date || row.captureDate || ''),
+    uploadDate: row.created_at ? String(row.created_at).split('T')[0] : String(row.uploadDate || ''),
+    location: String(row.location || ''),
+    collection: String(row.collection_name || row.collection || 'Ungrouped Memories'),
+    mediaType: row.media_type ? String(row.media_type).toLowerCase() : String(row.mediaType || 'unknown').toLowerCase(),
+    mediaTypeId: typeof row.media_type_id === 'number' ? row.media_type_id : Number(row.mediaTypeId) || undefined,
+    tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+    people: Array.isArray(row.people) ? row.people.map(String) : [],
+    thumbnail: thumbnail && isSafePreviewUrl(thumbnail) ? thumbnail : undefined,
+    filePath: readString(row, 'file_path', 'filePath'),
+    fileUrl: fileUrl && isSafePreviewUrl(fileUrl) ? fileUrl : undefined,
+  };
+};
 
 export const useMemoryDetails = ({ onSaved, onDeleted }: UseMemoryDetailsOptions = {}) => {
   const [availableMediaTypes, setAvailableMediaTypes] = useState<ReferenceOption[]>([]);
@@ -62,17 +102,7 @@ export const useMemoryDetails = ({ onSaved, onDeleted }: UseMemoryDetailsOptions
   const openMemory = useCallback(async (item: RecentMediaItem | DetailedMedia) => {
     try {
       const details = await window.electronAPI.getMediaDetails(Number(item.id));
-      let normalized = details ? normalizeDetailedMedia(details) : normalizeDetailedMedia(item as unknown as Record<string, unknown>);
-
-      const previewCandidate = normalized.thumbnail || normalized.fileUrl || normalized.filePath;
-      if (previewCandidate && window.electronAPI?.getFilePreview && !normalized.thumbnail?.startsWith('data:')) {
-        try {
-          const preview = await window.electronAPI.getFilePreview(previewCandidate);
-          if (preview?.dataUrl) normalized = { ...normalized, thumbnail: preview.dataUrl };
-        } catch (err) {
-          console.warn('Error fetching detail preview', err);
-        }
-      }
+      const normalized = await resolveDetailPreview(details ? normalizeDetailedMedia(details) : normalizeDetailedMedia(item as unknown as Record<string, unknown>));
 
       setSelected(normalized);
       setShowDetails(true);
@@ -98,7 +128,7 @@ export const useMemoryDetails = ({ onSaved, onDeleted }: UseMemoryDetailsOptions
       };
       const response = await window.electronAPI.updateMediaDetails(payload);
       if (response.success && response.media) {
-        const normalized = normalizeDetailedMedia(response.media);
+        const normalized = await resolveDetailPreview(normalizeDetailedMedia(response.media));
         setSelected(normalized);
         onSaved?.(normalized);
       }
