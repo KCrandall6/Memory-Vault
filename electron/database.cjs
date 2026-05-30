@@ -1,6 +1,3 @@
-+13
--1
-
 // electron/database.cjs - Updated version
 const { app } = require('electron');
 const path = require('path');
@@ -15,6 +12,23 @@ const {
   getDatabasePath,
   resolveArchiveFilePath
 } = storageRoot;
+
+const SYSTEM_COLLECTION_NAMES = ['general', 'unfiled memories', 'ungrouped memories'];
+const UNGROUPED_COLLECTION_ID = 'ungrouped';
+const UNGROUPED_COLLECTION_NAME = 'Ungrouped Memories';
+const UNGROUPED_COLLECTION_DESCRIPTION = 'Memories without a collection.';
+
+function normalizeCollectionName(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+function isSystemCollectionName(name) {
+  return SYSTEM_COLLECTION_NAMES.includes(normalizeCollectionName(name));
+}
+
+function systemCollectionPlaceholders() {
+  return SYSTEM_COLLECTION_NAMES.map(() => '?').join(',');
+}
 
 function resolveMediaAbsolutePath(filePath) {
   return resolveArchiveFilePath(filePath);
@@ -74,6 +88,24 @@ try {
   db = null;
 }
 
+function migrateSystemCollectionsToUngrouped() {
+  const placeholders = systemCollectionPlaceholders();
+  const systemCollections = db.prepare(`
+    SELECT id, name
+    FROM Collections
+    WHERE LOWER(TRIM(name)) IN (${placeholders})
+  `).all(...SYSTEM_COLLECTION_NAMES);
+
+  if (systemCollections.length === 0) return;
+
+  const ids = systemCollections.map((collection) => collection.id);
+  const idPlaceholders = ids.map(() => '?').join(',');
+
+  db.prepare(`UPDATE Media SET collection_id = NULL WHERE collection_id IN (${idPlaceholders})`).run(...ids);
+  db.prepare(`DELETE FROM Collections WHERE id IN (${idPlaceholders})`).run(...ids);
+  console.log(`Migrated ${systemCollections.length} legacy default collection(s) to ungrouped media`);
+}
+
 // Initialize default values in lookup tables if they're empty
 function initializeDefaultValues() {
   try {
@@ -111,13 +143,7 @@ function initializeDefaultValues() {
       console.log('Initialized default source types');
     }
     
-    // Create a default collection if none exists
-    const collectionsCount = db.prepare('SELECT COUNT(*) as count FROM Collections').get().count;
-    if (collectionsCount === 0) {
-      db.prepare('INSERT INTO Collections (name, description) VALUES (?, ?)')
-        .run('General', 'Default collection for uncategorized media');
-      console.log('Created default collection');
-    }
+    migrateSystemCollectionsToUngrouped();
   } catch (error) {
     console.error('Error initializing default values:', error);
   }
@@ -260,6 +286,8 @@ function searchMedia(criteria = {}) {
     const locationTerm = location ? location.toLowerCase().trim() : '';
     const peopleTerm = peopleText ? peopleText.toLowerCase().trim() : '';
     const tagsTerm = tagsText ? tagsText.toLowerCase().trim() : '';
+    const selectedCollectionIds = Array.isArray(collectionIds) ? collectionIds.filter(Boolean).map(Number) : [];
+    const ungroupedOnly = criteria.ungrouped === true;
 
     const { relevanceSql, relevanceParams } = buildRelevanceClause({
       searchTerm,
@@ -321,10 +349,13 @@ function searchMedia(criteria = {}) {
       params.push(...mediaTypeIds);
     }
 
-    if (collectionIds.length > 0) {
-      const placeholders = collectionIds.map(() => '?').join(',');
+    if (ungroupedOnly) {
+      query += ` AND (m.collection_id IS NULL OR LOWER(TRIM(c.name)) IN (${systemCollectionPlaceholders()}))`;
+      params.push(...SYSTEM_COLLECTION_NAMES);
+    } else if (selectedCollectionIds.length > 0) {
+      const placeholders = selectedCollectionIds.map(() => '?').join(',');
       query += ` AND m.collection_id IN (${placeholders})`;
-      params.push(...collectionIds);
+      params.push(...selectedCollectionIds);
     }
 
     if (dateFrom) {
@@ -385,6 +416,8 @@ function searchMedia(criteria = {}) {
           return 'LOWER(m.title) ASC';
         case 'type':
           return 'LOWER(mt.name) ASC, m.created_at DESC';
+        case 'uploaded':
+          return 'm.created_at DESC';
         default:
           return 'relevance DESC, CASE WHEN m.capture_date IS NULL THEN 1 ELSE 0 END, m.capture_date DESC, m.created_at DESC';
       }
@@ -506,6 +539,7 @@ function getMediaDetails(id) {
 function resolveCollectionId(collection) {
   if (collection === null || collection === undefined || collection === '') return null;
   if (typeof collection === 'number') return collection;
+  if (isSystemCollectionName(collection)) return null;
   const existing = db.prepare('SELECT id FROM Collections WHERE LOWER(name) = LOWER(?)').get(collection);
   if (existing) return existing.id;
   return addCollection(collection, '');
@@ -574,6 +608,296 @@ function updateMediaWithRelations(id, mediaData) {
   }
 }
 
+
+function getDashboardSummary() {
+  try {
+    if (!db) {
+      return {
+        totalMedia: 0,
+        collectionsCount: 0,
+        peopleCount: 0,
+        tagsCount: 0,
+        mediaTypeCounts: {}
+      };
+    }
+
+    const totalMedia = db.prepare('SELECT COUNT(*) as count FROM Media').get().count || 0;
+    const collectionsCount = db.prepare('SELECT COUNT(*) as count FROM Collections').get().count || 0;
+    const peopleCount = db.prepare('SELECT COUNT(*) as count FROM People').get().count || 0;
+    const tagsCount = db.prepare('SELECT COUNT(*) as count FROM Tags').get().count || 0;
+    const typeRows = db.prepare(`
+      SELECT LOWER(mt.name) as media_type, COUNT(m.id) as count
+      FROM MediaTypes mt
+      LEFT JOIN Media m ON m.media_type_id = mt.id
+      GROUP BY mt.id, mt.name
+    `).all();
+
+    const mediaTypeCounts = typeRows.reduce((counts, row) => {
+      counts[row.media_type] = row.count || 0;
+      return counts;
+    }, {});
+
+    return {
+      totalMedia,
+      collectionsCount,
+      peopleCount,
+      tagsCount,
+      mediaTypeCounts
+    };
+  } catch (error) {
+    console.error('Error getting dashboard summary:', error);
+    return {
+      totalMedia: 0,
+      collectionsCount: 0,
+      peopleCount: 0,
+      tagsCount: 0,
+      mediaTypeCounts: {}
+    };
+  }
+}
+
+
+function coverUrlsForRow(row) {
+  const absoluteThumbnail = resolveMediaAbsolutePath(row.thumbnail_path);
+  const absoluteFile = resolveMediaAbsolutePath(row.file_path);
+  return {
+    thumbnail_path: absoluteThumbnail || row.thumbnail_path || null,
+    thumbnail_url: absoluteThumbnail ? pathToFileURL(absoluteThumbnail).href : null,
+    file_path: absoluteFile || row.file_path || null,
+    file_url: absoluteFile ? pathToFileURL(absoluteFile).href : null,
+    media_type: row.media_type || null
+  };
+}
+
+function getCollectionSummaries() {
+  try {
+    if (!db) return [];
+    const systemPlaceholders = systemCollectionPlaceholders();
+    const rows = db.prepare(`
+      SELECT
+        c.id,
+        c.name,
+        c.description,
+        COUNT(m.id) as media_count,
+        MIN(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as start_year,
+        MAX(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as end_year,
+        cover.file_path,
+        cover.thumbnail_path,
+        cover_type.name as media_type,
+        0 as is_system_grouping
+      FROM Collections c
+      LEFT JOIN Media m ON m.collection_id = c.id
+      LEFT JOIN Media cover ON cover.id = (
+        SELECT m2.id
+        FROM Media m2
+        LEFT JOIN MediaTypes mt2 ON mt2.id = m2.media_type_id
+        WHERE m2.collection_id = c.id
+        ORDER BY CASE WHEN LOWER(mt2.name) = 'image' THEN 0 ELSE 1 END, m2.thumbnail_path IS NULL, m2.created_at DESC
+        LIMIT 1
+      )
+      LEFT JOIN MediaTypes cover_type ON cover_type.id = cover.media_type_id
+      WHERE LOWER(TRIM(c.name)) NOT IN (${systemPlaceholders})
+      GROUP BY c.id
+      ORDER BY c.name COLLATE NOCASE
+    `).all(...SYSTEM_COLLECTION_NAMES);
+
+    const ungrouped = db.prepare(`
+      SELECT
+        ? as id,
+        ? as name,
+        ? as description,
+        COUNT(m.id) as media_count,
+        MIN(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as start_year,
+        MAX(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as end_year,
+        cover.file_path,
+        cover.thumbnail_path,
+        cover_type.name as media_type,
+        1 as is_system_grouping
+      FROM Media m
+      LEFT JOIN Collections c ON c.id = m.collection_id
+      LEFT JOIN Media cover ON cover.id = (
+        SELECT m2.id
+        FROM Media m2
+        LEFT JOIN Collections c2 ON c2.id = m2.collection_id
+        LEFT JOIN MediaTypes mt2 ON mt2.id = m2.media_type_id
+        WHERE m2.collection_id IS NULL OR LOWER(TRIM(c2.name)) IN (${systemPlaceholders})
+        ORDER BY CASE WHEN LOWER(mt2.name) = 'image' THEN 0 ELSE 1 END, m2.thumbnail_path IS NULL, m2.created_at DESC
+        LIMIT 1
+      )
+      LEFT JOIN MediaTypes cover_type ON cover_type.id = cover.media_type_id
+      WHERE m.collection_id IS NULL OR LOWER(TRIM(c.name)) IN (${systemPlaceholders})
+    `).get(
+      UNGROUPED_COLLECTION_ID,
+      UNGROUPED_COLLECTION_NAME,
+      UNGROUPED_COLLECTION_DESCRIPTION,
+      ...SYSTEM_COLLECTION_NAMES,
+      ...SYSTEM_COLLECTION_NAMES
+    );
+
+    const normalizedRows = rows.map((row) => ({ ...row, ...coverUrlsForRow(row) }));
+    if (ungrouped && ungrouped.media_count > 0) {
+      normalizedRows.push({ ...ungrouped, ...coverUrlsForRow(ungrouped) });
+    }
+
+    return normalizedRows;
+  } catch (error) {
+    console.error('Error getting collection summaries:', error);
+    return [];
+  }
+}
+
+function getCollectionMedia(collectionId) {
+  if (String(collectionId) === UNGROUPED_COLLECTION_ID) {
+    return searchMedia({ ungrouped: true, sort: 'uploaded', limit: 1000, offset: 0 });
+  }
+  return searchMedia({ collectionIds: [Number(collectionId)], sort: 'uploaded', limit: 1000, offset: 0 });
+}
+
+function getPeopleSummaries() {
+  try {
+    if (!db) return [];
+    const rows = db.prepare(`
+      SELECT
+        p.id,
+        p.name,
+        COUNT(DISTINCT m.id) as media_count,
+        MIN(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as start_year,
+        MAX(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as end_year,
+        cover.file_path,
+        cover.thumbnail_path,
+        cover_type.name as media_type
+      FROM People p
+      LEFT JOIN MediaPeople mp ON mp.person_id = p.id
+      LEFT JOIN Media m ON m.id = mp.media_id
+      LEFT JOIN Media cover ON cover.id = (
+        SELECT m2.id
+        FROM MediaPeople mp2
+        JOIN Media m2 ON m2.id = mp2.media_id
+        LEFT JOIN MediaTypes mt2 ON mt2.id = m2.media_type_id
+        WHERE mp2.person_id = p.id
+        ORDER BY CASE WHEN LOWER(mt2.name) = 'image' THEN 0 ELSE 1 END, m2.thumbnail_path IS NULL, m2.created_at DESC
+        LIMIT 1
+      )
+      LEFT JOIN MediaTypes cover_type ON cover_type.id = cover.media_type_id
+      GROUP BY p.id
+      HAVING media_count > 0
+      ORDER BY p.name COLLATE NOCASE
+    `).all();
+
+    return rows.map((row) => ({ ...row, ...coverUrlsForRow(row) }));
+  } catch (error) {
+    console.error('Error getting people summaries:', error);
+    return [];
+  }
+}
+
+function getPersonMedia(personId) {
+  return searchMedia({ personIds: [Number(personId)], sort: 'uploaded', limit: 1000, offset: 0 });
+}
+
+function getTagSummaries() {
+  try {
+    if (!db) return [];
+    return db.prepare(`
+      SELECT
+        t.id,
+        t.name,
+        COUNT(DISTINCT mt.media_id) as media_count
+      FROM Tags t
+      LEFT JOIN MediaTags mt ON mt.tag_id = t.id
+      GROUP BY t.id
+      HAVING media_count > 0
+      ORDER BY media_count DESC, t.name COLLATE NOCASE ASC
+    `).all();
+  } catch (error) {
+    console.error('Error getting tag summaries:', error);
+    return [];
+  }
+}
+
+function getTagMedia(tagId) {
+  return searchMedia({ tagIds: [Number(tagId)], sort: 'uploaded', limit: 1000, offset: 0 });
+}
+
+function getDateSummaries() {
+  try {
+    if (!db) return [];
+    const rows = db.prepare(`
+      SELECT
+        strftime('%Y', m.capture_date) as year,
+        COUNT(m.id) as media_count,
+        MIN(m.capture_date) as start_date,
+        MAX(m.capture_date) as end_date,
+        cover.file_path,
+        cover.thumbnail_path,
+        cover_type.name as media_type
+      FROM Media m
+      LEFT JOIN Media cover ON cover.id = (
+        SELECT m2.id
+        FROM Media m2
+        LEFT JOIN MediaTypes mt2 ON mt2.id = m2.media_type_id
+        WHERE strftime('%Y', m2.capture_date) = strftime('%Y', m.capture_date)
+          AND m2.capture_date IS NOT NULL
+          AND m2.capture_date != ''
+        ORDER BY CASE WHEN LOWER(mt2.name) = 'image' THEN 0 ELSE 1 END, m2.thumbnail_path IS NULL, m2.capture_date ASC
+        LIMIT 1
+      )
+      LEFT JOIN MediaTypes cover_type ON cover_type.id = cover.media_type_id
+      WHERE m.capture_date IS NOT NULL AND m.capture_date != ''
+      GROUP BY year
+      ORDER BY year DESC
+    `).all();
+
+    return rows.map((row) => ({ ...row, ...coverUrlsForRow(row) }));
+  } catch (error) {
+    console.error('Error getting date summaries:', error);
+    return [];
+  }
+}
+
+function getDateMedia(year) {
+  return searchMedia({ dateFrom: `${year}-01-01`, dateTo: `${year}-12-31`, sort: 'oldest', limit: 1000, offset: 0 });
+}
+
+
+function updateCollectionDetails(id, { name, description = '' }) {
+  try {
+    if (!db) throw new Error('Database not initialized');
+    if (String(id) === UNGROUPED_COLLECTION_ID) throw new Error('Ungrouped Memories is a system grouping and cannot be edited');
+    const trimmedName = String(name || '').trim();
+    if (!trimmedName) throw new Error('Collection name is required');
+    if (isSystemCollectionName(trimmedName)) throw new Error('This name is reserved for ungrouped media');
+
+    db.prepare('UPDATE Collections SET name = ?, description = ? WHERE id = ?')
+      .run(trimmedName, description || '', Number(id));
+
+    return db.prepare('SELECT * FROM Collections WHERE id = ?').get(Number(id));
+  } catch (error) {
+    console.error('Error updating collection details:', error);
+    throw error;
+  }
+}
+
+function deleteCollectionIfEmpty(id) {
+  try {
+    if (!db) throw new Error('Database not initialized');
+    if (String(id) === UNGROUPED_COLLECTION_ID) {
+      return { success: false, blocked: true, mediaCount: 0, error: 'Ungrouped Memories is a system grouping and cannot be deleted' };
+    }
+    const collectionId = Number(id);
+    const mediaCount = db.prepare('SELECT COUNT(*) as count FROM Media WHERE collection_id = ?').get(collectionId).count;
+    if (mediaCount > 0) {
+      return { success: false, blocked: true, mediaCount };
+    }
+
+    const info = db.prepare('DELETE FROM Collections WHERE id = ?').run(collectionId);
+    return { success: info.changes > 0, blocked: false, mediaCount: 0 };
+  } catch (error) {
+    console.error('Error deleting collection:', error);
+    throw error;
+  }
+}
+
 // Get all media types
 function getMediaTypes() {
   try {
@@ -605,8 +929,12 @@ function getCollections() {
   try {
     if (!db) return [];
     
-    const stmt = db.prepare('SELECT * FROM Collections ORDER BY name');
-    return stmt.all();
+    const stmt = db.prepare(`
+      SELECT * FROM Collections
+      WHERE LOWER(TRIM(name)) NOT IN (${systemCollectionPlaceholders()})
+      ORDER BY name
+    `);
+    return stmt.all(...SYSTEM_COLLECTION_NAMES);
   } catch (error) {
     console.error('Error getting collections:', error);
     return [];
@@ -713,6 +1041,7 @@ function linkPersonToMedia(mediaId, personId) {
 function addCollection(name, description = '') {
   try {
     if (!db) throw new Error('Database not initialized');
+    if (isSystemCollectionName(name)) return null;
     
     // Check if collection exists
     const existingCollection = db.prepare('SELECT id FROM Collections WHERE name = ?').get(name);
@@ -808,6 +1137,17 @@ module.exports = {
   addMedia,
   searchMedia,
   getMediaDetails,
+  getDashboardSummary,
+  getCollectionSummaries,
+  getCollectionMedia,
+  getPeopleSummaries,
+  getPersonMedia,
+  getTagSummaries,
+  getTagMedia,
+  getDateSummaries,
+  getDateMedia,
+  updateCollectionDetails,
+  deleteCollectionIfEmpty,
   getMediaTypes,
   getSourceTypes,
   getCollections,
@@ -818,5 +1158,6 @@ module.exports = {
   linkTagToMedia,
   linkPersonToMedia,
   addCollection,
-  updateMediaWithRelations
+  updateMediaWithRelations,
+  deleteMedia
 };

@@ -29,6 +29,7 @@ export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
+const APP_ICON_PATH = path.join(process.env.VITE_PUBLIC, 'memory-vault-logo.png');
 
 
 function resolvePreviewFilePath(filePathOrUrl: string): string | null {
@@ -193,6 +194,127 @@ function setupIpcHandlers() {
     }
   });
 
+  ipcMain.handle('get-dashboard-summary', async () => {
+    try {
+      return await dbOperations.getDashboardSummary();
+    } catch (error) {
+      console.error('Error getting dashboard summary:', error);
+      return {
+        totalMedia: 0,
+        collectionsCount: 0,
+        peopleCount: 0,
+        tagsCount: 0,
+        mediaTypeCounts: {}
+      };
+    }
+  });
+
+
+  ipcMain.handle('get-collection-summaries', async () => {
+    try {
+      return await dbOperations.getCollectionSummaries();
+    } catch (error) {
+      console.error('Error getting collection summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-collection-media', async (_event, collectionId: number | string) => {
+    try {
+      return await dbOperations.getCollectionMedia(collectionId);
+    } catch (error) {
+      console.error('Error getting collection media:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-people-summaries', async () => {
+    try {
+      return await dbOperations.getPeopleSummaries();
+    } catch (error) {
+      console.error('Error getting people summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-person-media', async (_event, personId: number) => {
+    try {
+      return await dbOperations.getPersonMedia(personId);
+    } catch (error) {
+      console.error('Error getting person media:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-tag-summaries', async () => {
+    try {
+      return await dbOperations.getTagSummaries();
+    } catch (error) {
+      console.error('Error getting tag summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-tag-media', async (_event, tagId: number) => {
+    try {
+      return await dbOperations.getTagMedia(tagId);
+    } catch (error) {
+      console.error('Error getting tag media:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-date-summaries', async () => {
+    try {
+      return await dbOperations.getDateSummaries();
+    } catch (error) {
+      console.error('Error getting date summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-date-media', async (_event, year: string) => {
+    try {
+      return await dbOperations.getDateMedia(year);
+    } catch (error) {
+      console.error('Error getting date media:', error);
+      return [];
+    }
+  });
+
+
+  ipcMain.handle('update-collection-details', async (_event, payload: { id: number; name: string; description?: string }) => {
+    try {
+      const collection = await dbOperations.updateCollectionDetails(payload.id, {
+        name: payload.name,
+        description: payload.description || ''
+      });
+      return { success: true, collection };
+    } catch (error) {
+      console.error('Error updating collection details:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('delete-collection', async (_event, id: number) => {
+    try {
+      return await dbOperations.deleteCollectionIfEmpty(id);
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('delete-media', async (_event, id: number) => {
+    try {
+      const deleted = await dbOperations.deleteMedia(id);
+      return { success: deleted };
+    } catch (error) {
+      console.error('Error deleting media:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
   ipcMain.handle('update-media-details', async (_event, payload) => {
     try {
       const updated = await dbOperations.updateMediaWithRelations(payload.id, {
@@ -328,7 +450,7 @@ let win: BrowserWindow | null;
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(currentDir, 'preload.js'),
       contextIsolation: true,
@@ -370,6 +492,13 @@ app.on('activate', () => {
 // App initialization
 app.whenReady().then(async () => {
   try {
+    app.setName('Memory Vault');
+    app.setAppUserModelId('com.memoryvault.app');
+
+    if (process.platform === 'darwin' && app.dock) {
+      app.dock.setIcon(APP_ICON_PATH);
+    }
+
     // Initialize database
     const dbTestResult = await testDatabase();
     console.log('Database test result:', dbTestResult);

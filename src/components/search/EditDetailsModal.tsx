@@ -5,7 +5,7 @@ import { ReferenceOption } from './SearchBar';
 
 export type EditableDetails = Pick<
   DetailedMedia,
-  'title' | 'description' | 'captureDate' | 'location' | 'collection' | 'tags' | 'people'
+  'title' | 'description' | 'captureDate' | 'location' | 'collection' | 'tags' | 'people' | 'mediaType' | 'mediaTypeId'
 >;
 
 type EditDetailsModalProps = {
@@ -13,6 +13,7 @@ type EditDetailsModalProps = {
   media: DetailedMedia;
   onClose: () => void;
   onSave: (details: EditableDetails) => void;
+  availableMediaTypes: ReferenceOption[];
   availableCollections: ReferenceOption[];
   availablePeople: ReferenceOption[];
   availableTags: ReferenceOption[];
@@ -23,6 +24,7 @@ const EditDetailsModal = ({
   media,
   onClose,
   onSave,
+  availableMediaTypes,
   availableCollections,
   availablePeople,
   availableTags,
@@ -33,6 +35,8 @@ const EditDetailsModal = ({
     captureDate: media.captureDate || '',
     location: media.location || '',
     collection: media.collection || '',
+    mediaType: media.mediaType || 'unknown',
+    mediaTypeId: media.mediaTypeId,
     tags: media.tags || [],
     people: media.people || [],
   });
@@ -44,6 +48,8 @@ const EditDetailsModal = ({
       captureDate: media.captureDate || '',
       location: media.location || '',
       collection: media.collection || '',
+      mediaType: media.mediaType || 'unknown',
+      mediaTypeId: media.mediaTypeId,
       tags: media.tags || [],
       people: media.people || [],
     });
@@ -89,9 +95,23 @@ const EditDetailsModal = ({
       .sort((a, b) => Number(b.name.toLowerCase().startsWith(term)) - Number(a.name.toLowerCase().startsWith(term)));
   }, [availableTags, tagsSearch]);
 
-  const handleChange = (field: keyof EditableDetails, value: string | string[]) => {
+  const handleChange = (field: keyof EditableDetails, value: string | string[] | number | undefined) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
+
+
+  const handleMediaTypeChange = (mediaTypeIdValue: string) => {
+    const selected = availableMediaTypes.find((type) => type.id === mediaTypeIdValue);
+    setFormState((prev) => ({
+      ...prev,
+      mediaTypeId: mediaTypeIdValue ? Number(mediaTypeIdValue) : undefined,
+      mediaType: selected?.name ? selected.name.toLowerCase() : prev.mediaType,
+    }));
+  };
+
+  const selectedMediaTypeId = formState.mediaTypeId
+    ? String(formState.mediaTypeId)
+    : availableMediaTypes.find((type) => type.name.toLowerCase() === (formState.mediaType || '').toLowerCase())?.id || '';
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -168,6 +188,22 @@ const EditDetailsModal = ({
                 value={formState.description || ''}
                 onChange={(e) => handleChange('description', e.target.value)}
               />
+            </Form.Group>
+
+
+            <Form.Group controlId="mediaType" className="mt-3">
+              <Form.Label>Media Type</Form.Label>
+              <Form.Select
+                value={selectedMediaTypeId}
+                onChange={(e) => handleMediaTypeChange(e.target.value)}
+              >
+                <option value="">Select media type</option>
+                {availableMediaTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Row className="g-3 mt-1">

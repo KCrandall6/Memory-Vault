@@ -9,3 +9,14 @@
   font-weight: 600 !important;
   color: white !important;
 }
+
+
+.app-navbar {
+  background-color: #1E3A5F;
+  box-shadow: 0 2px 14px rgba(16, 36, 60, 0.16);
+}
+
+.navbar-brand img {
+  border-radius: 8px;
+  object-fit: contain;
+}

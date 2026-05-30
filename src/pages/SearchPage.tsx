@@ -3,6 +3,8 @@ import { Container, Row, Col, Card, Badge, Button, Spinner, Alert } from 'react-
 import FiltersBar from '../components/search/FilterBar';
 import SearchBar, { ReferenceOption, SearchQuery } from '../components/search/SearchBar';
 import DetailsModal, { DetailedMedia } from '../components/search/DetailsModal';
+import { isRendererSafePreviewUrl } from '../components/recent/recentMedia';
+import { resolveDetailPreview } from '../hooks/useMemoryDetails';
 
 const initialQuery: SearchQuery = {
   text: '',
@@ -42,7 +44,7 @@ const normalizeResult = (row: any): SearchResult => ({
   captureDate: row.capture_date || '',
   uploadDate: row.created_at ? String(row.created_at).split('T')[0] : undefined,
   location: row.location || '',
-  collection: row.collection_name || '',
+  collection: row.collection_name || 'Ungrouped Memories',
   mediaType: row.media_type ? String(row.media_type).toLowerCase() : 'document',
   mediaTypeId: row.media_type_id,
   tags: row.tags || [],
@@ -59,8 +61,9 @@ const normalizeDetails = (row: any): DetailedMedia => ({
   captureDate: row.capture_date || row.captureDate || '',
   uploadDate: row.created_at ? String(row.created_at).split('T')[0] : row.uploadDate,
   location: row.location || '',
-  collection: row.collection_name || row.collection || '',
+  collection: row.collection_name || row.collection || 'Ungrouped Memories',
   mediaType: row.media_type ? String(row.media_type).toLowerCase() : row.mediaType || 'document',
+  mediaTypeId: row.media_type_id || row.mediaTypeId || undefined,
   tags: row.tags || [],
   people: row.people || [],
   thumbnail: row.thumbnail_url || row.thumbnail || undefined,
@@ -204,21 +207,7 @@ const SearchPage = () => {
   const handleViewDetails = async (result: SearchResult) => {
     try {
       const details = await window.electronAPI.getMediaDetails(Number(result.id));
-      let normalized = details ? normalizeDetails(details) : normalizeDetails(result);
-
-      const previewCandidate =
-        normalized.thumbnail || normalized.fileUrl || normalized.filePath || result.thumbnail || result.fileUrl || result.filePath;
-
-      if (previewCandidate && window.electronAPI?.getFilePreview && !normalized.thumbnail?.startsWith('data:')) {
-        try {
-          const preview = await window.electronAPI.getFilePreview(previewCandidate);
-          if (preview?.dataUrl) {
-            normalized = { ...normalized, thumbnail: preview.dataUrl };
-          }
-        } catch (err) {
-          console.warn('Error fetching detail preview', err);
-        }
-      }
+      const normalized = await resolveDetailPreview(details ? normalizeDetails(details) : normalizeDetails(result));
 
       setSelected(normalized);
       setShowDetails(true);
@@ -226,6 +215,16 @@ const SearchPage = () => {
       console.error('Error loading media details', err);
       setSelected(normalizeDetails(result));
       setShowDetails(true);
+    }
+  };
+
+  const handleDeleteDetails = async (media: DetailedMedia) => {
+    const response = await window.electronAPI.deleteMedia(Number(media.id));
+    if (response.success) {
+      setShowDetails(false);
+      setSelected(undefined);
+      setResults((prev) => prev.filter((item) => item.id !== media.id));
+      setResolvedResults((prev) => prev.filter((item) => item.id !== media.id));
     }
   };
 
@@ -240,13 +239,14 @@ const SearchPage = () => {
         collection: updated.collection,
         tags: updated.tags || [],
         people: updated.people || [],
-        mediaTypeId: results.find((item) => item.id === updated.id)?.mediaTypeId || undefined,
+        mediaTypeId: updated.mediaTypeId || results.find((item) => item.id === updated.id)?.mediaTypeId || undefined,
       };
       const response = await window.electronAPI.updateMediaDetails(payload);
       if (response.success && response.media) {
-        const normalized = normalizeDetails(response.media);
+        const normalized = await resolveDetailPreview(normalizeDetails(response.media));
         setSelected(normalized);
         setResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
+        setResolvedResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
       }
     } catch (err) {
       console.error('Error saving media details', err);
@@ -256,8 +256,8 @@ const SearchPage = () => {
   const hasResults = results.length > 0;
 
   const getThumbnail = (result: SearchResult) => {
-    if (result.thumbnail && result.thumbnail.length > 0) return result.thumbnail;
-    if (result.fileUrl && result.fileUrl.length > 0) return result.fileUrl;
+    if (result.thumbnail && isRendererSafePreviewUrl(result.thumbnail)) return result.thumbnail;
+    if (result.fileUrl && isRendererSafePreviewUrl(result.fileUrl)) return result.fileUrl;
     return undefined;
   };
 
@@ -266,7 +266,7 @@ const SearchPage = () => {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <h1 className="mb-1">Search Media</h1>
-          <div className="text-muted">Find memories by keywords, people, places, and more.</div>
+          <div className="text-muted">Find a specific memory by title, people, tags, dates, locations, or collections.</div>
         </div>
         {selectedCount > 0 && <span className="badge bg-secondary">{selectedCount} active filters</span>}
       </div>
@@ -405,6 +405,8 @@ const SearchPage = () => {
         media={selected}
         onClose={() => setShowDetails(false)}
         onSaveDetails={handleSaveDetails}
+        onDeleteDetails={handleDeleteDetails}
+        availableMediaTypes={availableMediaTypes}
         availableCollections={availableCollections}
         availablePeople={availablePeople}
         availableTags={availableTags}
