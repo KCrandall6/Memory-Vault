@@ -9,3 +9,29 @@
   .main-content {
     flex: 1;
   }
+
+.app-layout {
+  min-width: 0;
+  overflow-x: hidden;
+  background-color: #f6f8fb;
+}
+
+.app-main {
+  overflow-x: hidden;
+}
+
+.app-content-container {
+  width: min(100%, 1440px);
+  max-width: 1440px;
+  margin-right: auto;
+  margin-left: auto;
+  padding-right: clamp(1rem, 3vw, 2.5rem) !important;
+  padding-left: clamp(1rem, 3vw, 2.5rem) !important;
+}
+
+@media (max-width: 575.98px) {
+  .app-content-container {
+    padding-right: 1rem !important;
+    padding-left: 1rem !important;
+  }
+}

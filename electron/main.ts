@@ -29,6 +29,7 @@ export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
+const APP_ICON_PATH = path.join(process.env.VITE_PUBLIC, 'memory-vault-logo.png');
 
 
 function resolvePreviewFilePath(filePathOrUrl: string): string | null {
@@ -343,7 +344,7 @@ let win: BrowserWindow | null;
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(currentDir, 'preload.js'),
       contextIsolation: true,
@@ -385,6 +386,13 @@ app.on('activate', () => {
 // App initialization
 app.whenReady().then(async () => {
   try {
+    app.setName('Memory Vault');
+    app.setAppUserModelId('com.memoryvault.app');
+
+    if (process.platform === 'darwin' && app.dock) {
+      app.dock.setIcon(APP_ICON_PATH);
+    }
+
     // Initialize database
     const dbTestResult = await testDatabase();
     console.log('Database test result:', dbTestResult);

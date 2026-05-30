@@ -4,9 +4,9 @@ import './Navbar.css';
 
 const Navbar = () => {
   return (
-    <div className="w-100 m-0 p-0">
+    <header className="app-navbar w-100 m-0 p-0">
       <BootstrapNavbar bg="dark" variant="dark" expand="lg" className="w-100">
-        <Container fluid>
+        <Container fluid className="app-content-container">
           <BootstrapNavbar.Brand as={Link} to="/">
             <img
               src="/memory-vault-logo.png"
@@ -31,7 +31,7 @@ const Navbar = () => {
           </BootstrapNavbar.Collapse>
         </Container>
       </BootstrapNavbar>
-    </div>
+    </header>
   );
 };
 

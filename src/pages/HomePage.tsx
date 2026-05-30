@@ -12,18 +12,79 @@ type DashboardSummary = {
   mediaTypeCounts: Record<string, number>;
 };
 
+type MediaKind = 'image' | 'video' | 'document' | 'audio' | 'unknown';
+
 type RecentMediaRow = Record<string, unknown>;
 
 const readString = (row: RecentMediaRow, key: string) => {
   const value = row[key];
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+};
+
+const isSafePreviewUrl = (value?: string) => Boolean(value && /^(data:|blob:|file:\/\/|https?:\/\/)/i.test(value));
+
+const extensionKind: Record<string, MediaKind> = {
+  jpg: 'image',
+  jpeg: 'image',
+  png: 'image',
+  gif: 'image',
+  webp: 'image',
+  heic: 'image',
+  heif: 'image',
+  svg: 'image',
+  mp4: 'video',
+  mov: 'video',
+  m4v: 'video',
+  avi: 'video',
+  webm: 'video',
+  mkv: 'video',
+  mp3: 'audio',
+  wav: 'audio',
+  m4a: 'audio',
+  aac: 'audio',
+  flac: 'audio',
+  pdf: 'document',
+  doc: 'document',
+  docx: 'document',
+  txt: 'document',
+  rtf: 'document',
+};
+
+const inferMediaType = (row: RecentMediaRow): MediaKind => {
+  const mediaType = [
+    readString(row, 'media_type'),
+    readString(row, 'mediaType'),
+    readString(row, 'mime_type'),
+    readString(row, 'mimeType'),
+    readString(row, 'type'),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (mediaType.includes('image')) return 'image';
+  if (mediaType.includes('video')) return 'video';
+  if (mediaType.includes('audio')) return 'audio';
+  if (mediaType.includes('document') || mediaType.includes('pdf') || mediaType.includes('text')) return 'document';
+
+  const pathCandidate = [
+    readString(row, 'file_name'),
+    readString(row, 'fileName'),
+    readString(row, 'file_path'),
+    readString(row, 'filePath'),
+    readString(row, 'file_url'),
+    readString(row, 'fileUrl'),
+  ].find(Boolean);
+  const extension = pathCandidate?.split(/[?#]/)[0].split('.').pop()?.toLowerCase();
+
+  return extension ? extensionKind[extension] || 'unknown' : 'unknown';
 };
 
 type RecentMedia = {
   id: string;
   title: string;
   fileName: string;
-  mediaType: string;
+  mediaType: MediaKind;
   collection?: string;
   captureDate?: string;
   createdAt?: string;
@@ -48,22 +109,21 @@ const mediaTypeIcon: Record<string, string> = {
 
 const formatCount = (value: number) => new Intl.NumberFormat().format(value || 0);
 
-const normalizeMediaType = (value?: string) => (value ? String(value).toLowerCase() : 'document');
-
 const normalizeRecentMedia = (row: RecentMediaRow): RecentMedia => {
-  const mediaType = normalizeMediaType(readString(row, 'media_type') || readString(row, 'mediaType'));
   const title = readString(row, 'title') || readString(row, 'file_name') || 'Untitled memory';
+  const thumbnailUrl = readString(row, 'thumbnail_url') || readString(row, 'thumbnailUrl');
+  const fileUrl = readString(row, 'file_url') || readString(row, 'fileUrl');
 
   return {
     id: String(row.id || ''),
     title,
     fileName: readString(row, 'file_name') || '',
-    mediaType,
+    mediaType: inferMediaType(row),
     collection: readString(row, 'collection_name') || readString(row, 'collection'),
     captureDate: readString(row, 'capture_date'),
     createdAt: readString(row, 'created_at'),
-    thumbnailUrl: readString(row, 'thumbnail_url'),
-    fileUrl: readString(row, 'file_url'),
+    thumbnailUrl: isSafePreviewUrl(thumbnailUrl) ? thumbnailUrl : undefined,
+    fileUrl: isSafePreviewUrl(fileUrl) ? fileUrl : undefined,
   };
 };
 
@@ -81,7 +141,7 @@ const getDateLabel = (item: RecentMedia) => {
   }).format(parsed);
 };
 
-const getImagePreview = (item: RecentMedia) => {
+const getPreviewCandidate = (item: RecentMedia) => {
   if (item.mediaType !== 'image') return undefined;
   return item.thumbnailUrl || item.fileUrl;
 };
@@ -91,6 +151,8 @@ const HomePage = () => {
   const [recentUploads, setRecentUploads] = useState<RecentMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolvedPreviewUrls, setResolvedPreviewUrls] = useState<Record<string, string>>({});
+  const [failedPreviewIds, setFailedPreviewIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -127,6 +189,54 @@ const HomePage = () => {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveImagePreviews = async () => {
+      const imageItems = recentUploads.filter((item) => getPreviewCandidate(item));
+
+      if (imageItems.length === 0) {
+        if (isMounted) setResolvedPreviewUrls({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        imageItems.map(async (item) => {
+          const candidate = getPreviewCandidate(item);
+          if (!candidate) return [item.id, undefined] as const;
+
+          if (candidate.startsWith('data:') || !window.electronAPI?.getFilePreview) {
+            return [item.id, candidate] as const;
+          }
+
+          try {
+            const preview = await window.electronAPI.getFilePreview(candidate);
+            return [item.id, preview?.dataUrl || candidate] as const;
+          } catch (err) {
+            console.warn('Error resolving recent upload preview', err);
+            return [item.id, candidate] as const;
+          }
+        })
+      );
+
+      if (!isMounted) return;
+
+      setResolvedPreviewUrls(
+        entries.reduce<Record<string, string>>((acc, [id, url]) => {
+          if (url) acc[id] = url;
+          return acc;
+        }, {})
+      );
+      setFailedPreviewIds({});
+    };
+
+    resolveImagePreviews();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [recentUploads]);
 
   const mediaBreakdown = useMemo(
     () => [
@@ -359,14 +469,20 @@ const HomePage = () => {
                   </Card>
                 ))
               : recentUploads.map((item) => {
-                  const preview = getImagePreview(item);
+                  const preview = resolvedPreviewUrls[item.id];
+                  const shouldShowPreview = Boolean(preview && !failedPreviewIds[item.id]);
                   const icon = mediaTypeIcon[item.mediaType] || 'bi-file-earmark';
 
                   return (
                     <Card className="home-recent-card" key={item.id}>
                       <div className="home-recent-card__preview">
-                        {preview ? (
-                          <img src={preview} alt={item.title} loading="lazy" />
+                        {shouldShowPreview ? (
+                          <img
+                            src={preview}
+                            alt={item.title}
+                            loading="lazy"
+                            onError={() => setFailedPreviewIds((prev) => ({ ...prev, [item.id]: true }))}
+                          />
                         ) : (
                           <div className="home-recent-card__placeholder">
                             <i className={`bi ${icon}`} aria-hidden="true" />
