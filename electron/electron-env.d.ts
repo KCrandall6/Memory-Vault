@@ -29,6 +29,54 @@ type DashboardSummary = {
   mediaTypeCounts: Record<string, number>;
 };
 
+
+type VaultPaths = {
+  vaultRoot: string;
+  databasePath: string;
+  databaseFileName: string;
+  archivePath: string;
+  archiveFolderName: string;
+};
+
+type VaultHealthStatus = 'healthy' | 'needs_attention' | 'missing' | 'unknown';
+
+type VaultHealthSummary = {
+  paths: VaultPaths;
+  health: {
+    status: VaultHealthStatus;
+    vaultRoot: VaultHealthStatus;
+    databaseFile: VaultHealthStatus;
+    archiveFolder: VaultHealthStatus;
+    databaseConnection: VaultHealthStatus;
+    warnings: string[];
+  };
+  storage: {
+    archiveSizeBytes: number;
+    databaseSizeBytes: number;
+    diskFreeBytes: number | null;
+    diskTotalBytes: number | null;
+    diskUsedBytes: number | null;
+    diskUsedPercent: number | null;
+  };
+  totals: {
+    totalMemories: number;
+    images: number;
+    documents: number;
+    videos: number;
+    audio: number;
+    collections: number;
+    people: number;
+    tags: number;
+  };
+  error?: string;
+  integrity: {
+    missingFilesCount: number;
+    orphanFilesCount: number;
+    missingFiles: Array<{ id?: number; title?: string | null; fileName: string; filePath: string; mediaType?: string | null }>;
+    orphanFiles: Array<{ fileName: string; filePath: string; size: number }>;
+  };
+};
+
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
   electronAPI: {
@@ -57,6 +105,10 @@ interface Window {
     updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
     downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>
       Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
+    getVaultSettings: () => Promise<VaultPaths>;
+    openVaultFolder: () => Promise<{ success: boolean; error?: string }>;
+    openArchiveFolder: () => Promise<{ success: boolean; error?: string }>;
+    getVaultHealth: () => Promise<VaultHealthSummary>;
     onMainProcessMessage: (callback: (...args: any[]) => void) => void;
   }
 }

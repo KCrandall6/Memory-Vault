@@ -609,6 +609,87 @@ function updateMediaWithRelations(id, mediaData) {
 }
 
 
+
+function getVaultStatistics() {
+  try {
+    if (!db) {
+      return {
+        databaseConnected: false,
+        totals: {
+          totalMemories: 0,
+          images: 0,
+          documents: 0,
+          videos: 0,
+          audio: 0,
+          collections: 0,
+          people: 0,
+          tags: 0
+        },
+        mediaFiles: []
+      };
+    }
+
+    const totalMemories = db.prepare('SELECT COUNT(*) as count FROM Media').get().count || 0;
+    const collections = db.prepare('SELECT COUNT(*) as count FROM Collections').get().count || 0;
+    const people = db.prepare('SELECT COUNT(*) as count FROM People').get().count || 0;
+    const tags = db.prepare('SELECT COUNT(*) as count FROM Tags').get().count || 0;
+    const typeRows = db.prepare(`
+      SELECT LOWER(mt.name) as media_type, COUNT(m.id) as count
+      FROM MediaTypes mt
+      LEFT JOIN Media m ON m.media_type_id = mt.id
+      GROUP BY mt.id, mt.name
+    `).all();
+
+    const mediaTypeCounts = typeRows.reduce((counts, row) => {
+      counts[row.media_type] = row.count || 0;
+      return counts;
+    }, {});
+
+    const mediaFiles = db.prepare(`
+      SELECT
+        m.id,
+        m.title,
+        m.file_name,
+        m.file_path,
+        mt.name as media_type
+      FROM Media m
+      LEFT JOIN MediaTypes mt ON mt.id = m.media_type_id
+      ORDER BY m.created_at DESC, m.id DESC
+    `).all();
+
+    return {
+      databaseConnected: true,
+      totals: {
+        totalMemories,
+        images: mediaTypeCounts.image || 0,
+        documents: mediaTypeCounts.document || 0,
+        videos: mediaTypeCounts.video || 0,
+        audio: mediaTypeCounts.audio || 0,
+        collections,
+        people,
+        tags
+      },
+      mediaFiles
+    };
+  } catch (error) {
+    console.error('Error getting vault statistics:', error);
+    return {
+      databaseConnected: false,
+      totals: {
+        totalMemories: 0,
+        images: 0,
+        documents: 0,
+        videos: 0,
+        audio: 0,
+        collections: 0,
+        people: 0,
+        tags: 0
+      },
+      mediaFiles: []
+    };
+  }
+}
+
 function getDashboardSummary() {
   try {
     if (!db) {
@@ -1138,6 +1219,7 @@ module.exports = {
   searchMedia,
   getMediaDetails,
   getDashboardSummary,
+  getVaultStatistics,
   getCollectionSummaries,
   getCollectionMedia,
   getPeopleSummaries,
