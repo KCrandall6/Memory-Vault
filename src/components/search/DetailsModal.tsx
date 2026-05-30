@@ -52,7 +52,6 @@ const DetailsModal = ({
     if (!media) return undefined;
     if (media.thumbnail && media.thumbnail.length > 0) return media.thumbnail;
     if (media.fileUrl && media.fileUrl.length > 0) return media.fileUrl;
-    if (media.filePath && media.filePath.length > 0) return media.filePath;
     return undefined;
   }, [media]);
 

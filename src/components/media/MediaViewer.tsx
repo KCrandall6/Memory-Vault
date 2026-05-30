@@ -13,6 +13,8 @@ interface MediaViewerProps {
   media: {
     id: number;
     file_path: string;
+    file_url?: string;
+    thumbnail_url?: string;
     title: string;
     description: string;
     media_type: string;
@@ -58,6 +60,8 @@ const MediaViewer = ({ media, thumbnail }: MediaViewerProps) => {
   const isImage = media.media_type?.toLowerCase() === 'image';
   const isVideo = media.media_type?.toLowerCase() === 'video';
   const isAudio = media.media_type?.toLowerCase() === 'audio';
+  const mediaSource = media.file_url || thumbnail || media.thumbnail_url || '';
+  const fileName = media.file_path.split(/[/\\]/).pop();
   const isPdf = media.file_path.toLowerCase().endsWith('.pdf');
 
   // Render the appropriate media element
@@ -85,7 +89,7 @@ const MediaViewer = ({ media, thumbnail }: MediaViewerProps) => {
           style={{ height: isFullscreen ? '85vh' : '350px' }}
         >
           <img 
-            src={thumbnail || media.file_path} 
+            src={thumbnail || media.thumbnail_url || media.file_url || ''} 
             alt={media.title}
             style={{ 
               transform: `scale(${zoomLevel})`,
@@ -105,7 +109,7 @@ const MediaViewer = ({ media, thumbnail }: MediaViewerProps) => {
           style={{ height: isFullscreen ? '85vh' : '350px' }}
         >
           <video 
-            src={media.file_path} 
+            src={mediaSource} 
             controls
             style={{ 
               maxWidth: '100%', 
@@ -130,7 +134,7 @@ const MediaViewer = ({ media, thumbnail }: MediaViewerProps) => {
             🎵
           </div>
           <audio 
-            src={media.file_path} 
+            src={mediaSource} 
             controls
             style={{ width: '100%', maxWidth: '500px' }}
             onError={() => setError('Error loading audio')}
@@ -147,7 +151,7 @@ const MediaViewer = ({ media, thumbnail }: MediaViewerProps) => {
           style={{ height: isFullscreen ? '85vh' : '350px' }}
         >
           <iframe 
-            src={media.file_path}
+            src={mediaSource}
             title={media.title}
             width="100%"
             height="100%"
@@ -171,7 +175,7 @@ const MediaViewer = ({ media, thumbnail }: MediaViewerProps) => {
           {media.media_type || 'Unknown'} file
         </p>
         <p className="text-muted">
-          {media.file_path.split('/').pop()}
+          {fileName}
         </p>
       </div>
     );
