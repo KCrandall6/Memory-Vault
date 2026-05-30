@@ -14,6 +14,7 @@ export type DetailedMedia = {
   tags?: string[];
   people?: string[];
   mediaType: string;
+  mediaTypeId?: number;
   thumbnail?: string;
   filePath?: string;
   fileUrl?: string;
@@ -24,6 +25,7 @@ type DetailsModalProps = {
   media?: DetailedMedia;
   onClose: () => void;
   onSaveDetails: (updated: DetailedMedia) => void;
+  availableMediaTypes: ReferenceOption[];
   availableCollections: ReferenceOption[];
   availablePeople: ReferenceOption[];
   availableTags: ReferenceOption[];
@@ -41,6 +43,7 @@ const DetailsModal = ({
   media,
   onClose,
   onSaveDetails,
+  availableMediaTypes,
   availableCollections,
   availablePeople,
   availableTags,
@@ -62,6 +65,8 @@ const DetailsModal = ({
       ...details,
       tags: details.tags,
       people: details.people,
+      mediaType: details.mediaType,
+      mediaTypeId: details.mediaTypeId,
     };
     onSaveDetails(updated);
     setEditing(false);
@@ -236,6 +241,7 @@ return (
           media={media}
           onClose={() => setEditing(false)}
           onSave={handleSave}
+          availableMediaTypes={availableMediaTypes}
           availableCollections={availableCollections}
           availablePeople={availablePeople}
           availableTags={availableTags}

@@ -61,6 +61,7 @@ const normalizeDetails = (row: any): DetailedMedia => ({
   location: row.location || '',
   collection: row.collection_name || row.collection || '',
   mediaType: row.media_type ? String(row.media_type).toLowerCase() : row.mediaType || 'document',
+  mediaTypeId: row.media_type_id || row.mediaTypeId || undefined,
   tags: row.tags || [],
   people: row.people || [],
   thumbnail: row.thumbnail_url || row.thumbnail || undefined,
@@ -240,13 +241,14 @@ const SearchPage = () => {
         collection: updated.collection,
         tags: updated.tags || [],
         people: updated.people || [],
-        mediaTypeId: results.find((item) => item.id === updated.id)?.mediaTypeId || undefined,
+        mediaTypeId: updated.mediaTypeId || results.find((item) => item.id === updated.id)?.mediaTypeId || undefined,
       };
       const response = await window.electronAPI.updateMediaDetails(payload);
       if (response.success && response.media) {
         const normalized = normalizeDetails(response.media);
         setSelected(normalized);
         setResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
+        setResolvedResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
       }
     } catch (err) {
       console.error('Error saving media details', err);
@@ -405,6 +407,7 @@ const SearchPage = () => {
         media={selected}
         onClose={() => setShowDetails(false)}
         onSaveDetails={handleSaveDetails}
+        availableMediaTypes={availableMediaTypes}
         availableCollections={availableCollections}
         availablePeople={availablePeople}
         availableTags={availableTags}

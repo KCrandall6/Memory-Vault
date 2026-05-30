@@ -385,6 +385,8 @@ function searchMedia(criteria = {}) {
           return 'LOWER(m.title) ASC';
         case 'type':
           return 'LOWER(mt.name) ASC, m.created_at DESC';
+        case 'uploaded':
+          return 'm.created_at DESC';
         default:
           return 'relevance DESC, CASE WHEN m.capture_date IS NULL THEN 1 ELSE 0 END, m.capture_date DESC, m.created_at DESC';
       }
