@@ -84,6 +84,23 @@ function PathRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+type VaultCopyResult = {
+  success: boolean;
+  destinationPath?: string;
+  copiedFileCount?: number;
+  totalBytesCopied?: number;
+  canceled?: boolean;
+  error?: string;
+};
+
+type CopyOperationKind = 'backup' | 'shareable';
+
+type CopyOperationState = {
+  status: 'idle' | 'creating' | 'complete' | 'failed';
+  result?: VaultCopyResult;
+  error?: string;
+};
+
 type MetricAccent = 'gold' | 'blue' | 'teal' | 'purple' | 'rose' | 'indigo' | 'green' | 'slate';
 
 function MetricCard({
@@ -143,6 +160,10 @@ function VaultSettingsPage() {
   const [openMessage, setOpenMessage] = useState<string | null>(null);
   const [showMissingDetails, setShowMissingDetails] = useState(false);
   const [showOrphanDetails, setShowOrphanDetails] = useState(false);
+  const [copyOperations, setCopyOperations] = useState<Record<CopyOperationKind, CopyOperationState>>({
+    backup: { status: 'idle' },
+    shareable: { status: 'idle' }
+  });
 
   const loadVaultHealth = async () => {
     setLoading(true);
@@ -179,6 +200,53 @@ function VaultSettingsPage() {
 
     if (!result.success) {
       setOpenMessage(result.error || `Unable to open ${kind} folder.`);
+    }
+  };
+
+  const isCopyOperationRunning = copyOperations.backup.status === 'creating' || copyOperations.shareable.status === 'creating';
+
+  const startCopyOperation = async (kind: CopyOperationKind) => {
+    setCopyOperations((current) => ({
+      ...current,
+      [kind]: { status: 'creating' }
+    }));
+
+    try {
+      const result = kind === 'backup'
+        ? await window.electronAPI.createVaultBackup()
+        : await window.electronAPI.createVaultShareableCopy();
+
+      if (result.canceled) {
+        setCopyOperations((current) => ({
+          ...current,
+          [kind]: { status: 'idle' }
+        }));
+        return;
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'The copy could not be created.');
+      }
+
+      setCopyOperations((current) => ({
+        ...current,
+        [kind]: { status: 'complete', result }
+      }));
+    } catch (err) {
+      setCopyOperations((current) => ({
+        ...current,
+        [kind]: {
+          status: 'failed',
+          error: err instanceof Error ? err.message : 'The copy could not be created.'
+        }
+      }));
+    }
+  };
+
+  const openCreatedOutputFolder = async (folderPath: string) => {
+    const result = await window.electronAPI.openVaultOutputFolder(folderPath);
+    if (!result.success) {
+      setOpenMessage(result.error || 'Unable to open the created folder.');
     }
   };
 
@@ -297,6 +365,70 @@ function VaultSettingsPage() {
                 <MetricCard label="Drive free space" value={formatBytes(summary.storage.diskFreeBytes)} icon="bi-device-hdd" accent="green" />
                 <MetricCard label="Drive usage" value={`${formatBytes(summary.storage.diskUsedBytes)} / ${formatBytes(summary.storage.diskTotalBytes)} · ${diskUsedLabel}`} icon="bi-pie-chart" accent="slate" />
               </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        <Col xs={12}>
+          <Card className="vault-settings-card vault-settings-backup-card">
+            <Card.Body>
+              <div className="vault-settings-card__header">
+                <div>
+                  <p className="vault-settings-eyebrow">Vault Management</p>
+                  <h2>Backup &amp; Copy</h2>
+                  <p className="vault-settings-muted">Create a safety backup of your vault or prepare a copy of your archive data to share with family.</p>
+                </div>
+                <i className="bi bi-copy" />
+              </div>
+              <p className="vault-settings-copy-note">Backups are for protecting your archive. Shareable copies are for giving another family member a copy of the vault data.</p>
+              <Row className="g-3">
+                <Col md={6}>
+                  <div className="vault-settings-copy-action vault-settings-copy-action--backup">
+                    <div className="vault-settings-copy-action__icon"><i className="bi bi-shield-lock" /></div>
+                    <div className="vault-settings-copy-action__body">
+                      <h3>Create Backup</h3>
+                      <p>Backups preserve your vault database and archived media so you can restore them later.</p>
+                      <Button disabled={isCopyOperationRunning} onClick={() => startCopyOperation('backup')}>
+                        {copyOperations.backup.status === 'creating' ? 'Creating backup…' : 'Create Backup'}
+                      </Button>
+                    </div>
+                    {copyOperations.backup.status === 'complete' && copyOperations.backup.result?.destinationPath && (
+                      <Alert variant="success" className="vault-settings-copy-result">
+                        <strong>Backup complete.</strong>
+                        <code>{copyOperations.backup.result.destinationPath}</code>
+                        <span>{copyOperations.backup.result.copiedFileCount ?? 0} files · {formatBytes(copyOperations.backup.result.totalBytesCopied)}</span>
+                        <Button size="sm" variant="outline-success" onClick={() => openCreatedOutputFolder(copyOperations.backup.result!.destinationPath!)}>Open Backup Folder</Button>
+                      </Alert>
+                    )}
+                    {copyOperations.backup.status === 'failed' && (
+                      <Alert variant="danger" className="vault-settings-copy-result">{copyOperations.backup.error}</Alert>
+                    )}
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <div className="vault-settings-copy-action vault-settings-copy-action--shareable">
+                    <div className="vault-settings-copy-action__icon"><i className="bi bi-people" /></div>
+                    <div className="vault-settings-copy-action__body">
+                      <h3>Create Shareable Copy</h3>
+                      <p>A shareable copy contains your archive data so another family member can keep a copy of the memories.</p>
+                      <Button variant="outline-primary" disabled={isCopyOperationRunning} onClick={() => startCopyOperation('shareable')}>
+                        {copyOperations.shareable.status === 'creating' ? 'Creating copy…' : 'Create Shareable Copy'}
+                      </Button>
+                    </div>
+                    {copyOperations.shareable.status === 'complete' && copyOperations.shareable.result?.destinationPath && (
+                      <Alert variant="success" className="vault-settings-copy-result">
+                        <strong>Shareable copy complete.</strong>
+                        <code>{copyOperations.shareable.result.destinationPath}</code>
+                        <span>{copyOperations.shareable.result.copiedFileCount ?? 0} files · {formatBytes(copyOperations.shareable.result.totalBytesCopied)}</span>
+                        <Button size="sm" variant="outline-success" onClick={() => openCreatedOutputFolder(copyOperations.shareable.result!.destinationPath!)}>Open Copy Folder</Button>
+                      </Alert>
+                    )}
+                    {copyOperations.shareable.status === 'failed' && (
+                      <Alert variant="danger" className="vault-settings-copy-result">{copyOperations.shareable.error}</Alert>
+                    )}
+                  </div>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
         </Col>

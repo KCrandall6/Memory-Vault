@@ -58,6 +58,16 @@ type VaultHealthSummary = {
   };
 };
 
+
+type VaultCopyResult = {
+  success: boolean;
+  destinationPath?: string;
+  copiedFileCount?: number;
+  totalBytesCopied?: number;
+  canceled?: boolean;
+  error?: string;
+};
+
 interface ElectronAPI {
   selectFiles: () => Promise<any[]>;
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
@@ -87,6 +97,9 @@ interface ElectronAPI {
   openVaultFolder: () => Promise<{ success: boolean; error?: string }>;
   openArchiveFolder: () => Promise<{ success: boolean; error?: string }>;
   getVaultHealth: () => Promise<VaultHealthSummary>;
+  createVaultBackup: () => Promise<VaultCopyResult>;
+  createVaultShareableCopy: () => Promise<VaultCopyResult>;
+  openVaultOutputFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
   onMainProcessMessage: (callback: (...args: unknown[]) => void) => void;
 }
 
@@ -118,6 +131,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openVaultFolder: () => ipcRenderer.invoke('open-vault-folder'),
   openArchiveFolder: () => ipcRenderer.invoke('open-archive-folder'),
   getVaultHealth: () => ipcRenderer.invoke('get-vault-health'),
+  createVaultBackup: () => ipcRenderer.invoke('create-vault-backup'),
+  createVaultShareableCopy: () => ipcRenderer.invoke('create-vault-shareable-copy'),
+  openVaultOutputFolder: (folderPath) => ipcRenderer.invoke('open-vault-output-folder', folderPath),
   onMainProcessMessage: (callback) => {
     ipcRenderer.on('main-process-message', (_event: IpcRendererEvent, ...args: unknown[]) => callback(...args));
   },

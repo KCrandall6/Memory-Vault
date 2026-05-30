@@ -54,6 +54,16 @@ type VaultHealthSummary = {
   };
 };
 
+
+type VaultCopyResult = {
+  success: boolean;
+  destinationPath?: string;
+  copiedFileCount?: number;
+  totalBytesCopied?: number;
+  canceled?: boolean;
+  error?: string;
+};
+
 interface ElectronAPI {
   selectFiles: () => Promise<any[]>;
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
@@ -83,6 +93,9 @@ interface ElectronAPI {
   openVaultFolder: () => Promise<{ success: boolean; error?: string }>;
   openArchiveFolder: () => Promise<{ success: boolean; error?: string }>;
   getVaultHealth: () => Promise<VaultHealthSummary>;
+  createVaultBackup: () => Promise<VaultCopyResult>;
+  createVaultShareableCopy: () => Promise<VaultCopyResult>;
+  openVaultOutputFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
   getFilePreview?: (filePath: string) => Promise<{ dataUrl: string; mimeType: string } | null>;
 }
 

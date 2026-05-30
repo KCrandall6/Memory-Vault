@@ -77,6 +77,16 @@ type VaultHealthSummary = {
   };
 };
 
+
+type VaultCopyResult = {
+  success: boolean;
+  destinationPath?: string;
+  copiedFileCount?: number;
+  totalBytesCopied?: number;
+  canceled?: boolean;
+  error?: string;
+};
+
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
   electronAPI: {
@@ -109,6 +119,9 @@ interface Window {
     openVaultFolder: () => Promise<{ success: boolean; error?: string }>;
     openArchiveFolder: () => Promise<{ success: boolean; error?: string }>;
     getVaultHealth: () => Promise<VaultHealthSummary>;
+    createVaultBackup: () => Promise<VaultCopyResult>;
+    createVaultShareableCopy: () => Promise<VaultCopyResult>;
+    openVaultOutputFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
     onMainProcessMessage: (callback: (...args: any[]) => void) => void;
   }
 }

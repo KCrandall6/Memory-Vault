@@ -472,3 +472,80 @@
     grid-template-columns: 1fr;
   }
 }
+
+.vault-settings-backup-card {
+  border-color: #dbe8f5;
+}
+
+.vault-settings-copy-note {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e5edf6;
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #475569;
+  font-weight: 700;
+}
+
+.vault-settings-copy-action {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  min-height: 100%;
+  padding: 1rem;
+  border: 1px solid #e5edf6;
+  border-radius: 18px;
+  background: #fbfdff;
+}
+
+.vault-settings-copy-action__icon {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 1.4rem;
+}
+
+.vault-settings-copy-action--shareable .vault-settings-copy-action__icon {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.vault-settings-copy-action__body h3 {
+  margin: 0 0 0.45rem;
+  color: #1e3a5f;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.vault-settings-copy-action__body p {
+  margin: 0 0 1rem;
+  color: #64748b;
+}
+
+.vault-settings-copy-result {
+  grid-column: 1 / -1;
+  margin: 0.25rem 0 0;
+}
+
+.vault-settings-copy-result strong,
+.vault-settings-copy-result span,
+.vault-settings-copy-result code {
+  display: block;
+}
+
+.vault-settings-copy-result code {
+  margin: 0.4rem 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 768px) {
+  .vault-settings-copy-action {
+    grid-template-columns: 1fr;
+  }
+}

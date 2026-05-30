@@ -87,6 +87,24 @@ type VaultMediaRecord = {
   media_type?: string | null;
 };
 
+type VaultCopyType = 'backup' | 'shareable-copy';
+
+type CopyStats = {
+  copiedFileCount: number;
+  totalBytesCopied: number;
+};
+
+type VaultCopyResult = {
+  success: boolean;
+  destinationPath?: string;
+  copiedFileCount?: number;
+  totalBytesCopied?: number;
+  canceled?: boolean;
+  error?: string;
+};
+
+const createdVaultOutputFolders = new Set<string>();
+
 async function pathExists(targetPath: string): Promise<boolean> {
   try {
     await fs.access(targetPath);
@@ -185,6 +203,122 @@ function getVaultPaths() {
     databaseFileName: DATABASE_FILENAME,
     archivePath,
     archiveFolderName: ARCHIVE_FOLDER_NAME
+  };
+}
+
+
+function formatTimestampForFolder(date = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
+}
+
+async function resolveUniqueChildDirectory(parentPath: string, baseName: string) {
+  let candidate = path.join(parentPath, baseName);
+  let suffix = 2;
+
+  while (await pathExists(candidate)) {
+    candidate = path.join(parentPath, `${baseName}-${suffix}`);
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
+async function copyFileWithStats(sourcePath: string, destinationPath: string, stats: CopyStats) {
+  await fs.mkdir(path.dirname(destinationPath), { recursive: true });
+  await fs.copyFile(sourcePath, destinationPath);
+  stats.copiedFileCount += 1;
+  stats.totalBytesCopied += await getFileSize(sourcePath);
+}
+
+async function copyDirectoryWithStats(sourceDirectory: string, destinationDirectory: string, stats: CopyStats) {
+  await fs.mkdir(destinationDirectory, { recursive: true });
+  const entries = await fs.readdir(sourceDirectory, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDirectory, entry.name);
+    const destinationPath = path.join(destinationDirectory, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirectoryWithStats(sourcePath, destinationPath, stats);
+    } else if (entry.isFile()) {
+      await copyFileWithStats(sourcePath, destinationPath, stats);
+    }
+  }
+}
+
+async function writeTextFileWithStats(destinationPath: string, contents: string, stats: CopyStats) {
+  await fs.writeFile(destinationPath, contents, 'utf8');
+  stats.copiedFileCount += 1;
+  stats.totalBytesCopied += new TextEncoder().encode(contents).length;
+}
+
+function buildShareableCopyReadme() {
+  return `Memory Vault Shareable Copy\n\nThis folder contains a copy of Memory Vault archive data.\n\nWhat's included:\n- The Memory Vault SQLite database with memory metadata.\n- The archived media files that were stored in the vault archive folder.\n- A copy-info.json manifest describing when and where this copy was created.\n\nWhat is not included:\n- This folder does not necessarily include the Memory Vault application itself.\n- This folder does not grant any additional app license or software distribution rights.\n\nHow to use this copy:\nFor now, keep this folder as a preserved data copy for a family member. Once Memory Vault supports vault switching or import, open or import this folder with Memory Vault to browse the copied archive data.\n`;
+}
+
+async function createVaultCopy(copyType: VaultCopyType): Promise<VaultCopyResult> {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: copyType === 'backup' ? 'Choose backup destination' : 'Choose shareable copy destination',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return { success: false, canceled: true };
+  }
+
+  const destinationParent = filePaths[0];
+  const paths = getVaultPaths();
+  const [databaseExists, archiveExists] = await Promise.all([
+    pathExists(paths.databasePath),
+    pathExists(paths.archivePath)
+  ]);
+
+  if (!databaseExists) {
+    return { success: false, error: 'The vault database file could not be found, so the copy was not created.' };
+  }
+
+  if (!archiveExists) {
+    return { success: false, error: 'The media archive folder could not be found, so the copy was not created.' };
+  }
+
+  const folderPrefix = copyType === 'backup' ? 'MemoryVault-Backup' : 'MemoryVault-Shareable-Copy';
+  const outputFolder = await resolveUniqueChildDirectory(destinationParent, `${folderPrefix}-${formatTimestampForFolder()}`);
+  const stats: CopyStats = { copiedFileCount: 0, totalBytesCopied: 0 };
+  const vaultStatistics = await dbOperations.getVaultStatistics();
+  const databaseSizeBytes = await getFileSize(paths.databasePath);
+  const archiveSizeBytes = await getDirectorySize(paths.archivePath);
+
+  await fs.mkdir(outputFolder, { recursive: false });
+  await copyFileWithStats(paths.databasePath, path.join(outputFolder, paths.databaseFileName), stats);
+  await copyDirectoryWithStats(paths.archivePath, path.join(outputFolder, paths.archiveFolderName), stats);
+
+  const manifest = {
+    createdAt: new Date().toISOString(),
+    backupType: copyType === 'backup' ? 'backup' : 'shareable-copy',
+    sourceVaultPath: paths.vaultRoot,
+    databaseFileName: paths.databaseFileName,
+    databaseSizeBytes,
+    archiveFolderName: paths.archiveFolderName,
+    archiveSizeBytes,
+    mediaCount: vaultStatistics?.totals?.totalMemories ?? null,
+    appVersion: app.getVersion?.() || null
+  };
+
+  const manifestFileName = copyType === 'backup' ? 'backup-info.json' : 'copy-info.json';
+  await writeTextFileWithStats(path.join(outputFolder, manifestFileName), `${JSON.stringify(manifest, null, 2)}\n`, stats);
+
+  if (copyType === 'shareable-copy') {
+    await writeTextFileWithStats(path.join(outputFolder, 'README-Start-Here.txt'), buildShareableCopyReadme(), stats);
+  }
+
+  createdVaultOutputFolders.add(path.normalize(outputFolder));
+
+  return {
+    success: true,
+    destinationPath: outputFolder,
+    copiedFileCount: stats.copiedFileCount,
+    totalBytesCopied: stats.totalBytesCopied
   };
 }
 
@@ -313,6 +447,39 @@ function setupIpcHandlers() {
     } catch (error) {
       console.error('Error getting vault health:', error);
       return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('create-vault-backup', async () => {
+    try {
+      return await createVaultCopy('backup');
+    } catch (error) {
+      console.error('Error creating vault backup:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('create-vault-shareable-copy', async () => {
+    try {
+      return await createVaultCopy('shareable-copy');
+    } catch (error) {
+      console.error('Error creating vault shareable copy:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('open-vault-output-folder', async (_event, folderPath: string) => {
+    try {
+      const normalizedFolderPath = path.normalize(folderPath || '');
+      if (!createdVaultOutputFolders.has(normalizedFolderPath)) {
+        return { success: false, error: 'This folder was not created during the current Memory Vault session.' };
+      }
+
+      const result = await shell.openPath(normalizedFolderPath);
+      return { success: result.length === 0, error: result || undefined };
+    } catch (error) {
+      console.error('Error opening vault output folder:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   });
 
