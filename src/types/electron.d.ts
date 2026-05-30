@@ -16,6 +16,14 @@ interface ElectronAPI {
   getPeople: () => Promise<any[]>;
   searchMedia: (criteria: any) => Promise<any[]>;
   getDashboardSummary: () => Promise<DashboardSummary>;
+  getCollectionSummaries: () => Promise<any[]>;
+  getCollectionMedia: (collectionId: number) => Promise<any[]>;
+  getPeopleSummaries: () => Promise<any[]>;
+  getPersonMedia: (personId: number) => Promise<any[]>;
+  getTagSummaries: () => Promise<any[]>;
+  getTagMedia: (tagId: number) => Promise<any[]>;
+  getDateSummaries: () => Promise<any[]>;
+  getDateMedia: (year: string) => Promise<any[]>;
   getMediaDetails: (id: number) => Promise<any | null>;
   updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
   downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>

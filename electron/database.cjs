@@ -624,6 +624,165 @@ function getDashboardSummary() {
   }
 }
 
+
+function coverUrlsForRow(row) {
+  const absoluteThumbnail = resolveMediaAbsolutePath(row.thumbnail_path);
+  const absoluteFile = resolveMediaAbsolutePath(row.file_path);
+  return {
+    thumbnail_path: absoluteThumbnail || row.thumbnail_path || null,
+    thumbnail_url: absoluteThumbnail ? pathToFileURL(absoluteThumbnail).href : null,
+    file_path: absoluteFile || row.file_path || null,
+    file_url: absoluteFile ? pathToFileURL(absoluteFile).href : null,
+    media_type: row.media_type || null
+  };
+}
+
+function getCollectionSummaries() {
+  try {
+    if (!db) return [];
+    const rows = db.prepare(`
+      SELECT
+        c.id,
+        c.name,
+        c.description,
+        COUNT(m.id) as media_count,
+        MIN(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as start_year,
+        MAX(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as end_year,
+        cover.file_path,
+        cover.thumbnail_path,
+        cover_type.name as media_type
+      FROM Collections c
+      LEFT JOIN Media m ON m.collection_id = c.id
+      LEFT JOIN Media cover ON cover.id = (
+        SELECT m2.id
+        FROM Media m2
+        LEFT JOIN MediaTypes mt2 ON mt2.id = m2.media_type_id
+        WHERE m2.collection_id = c.id
+        ORDER BY CASE WHEN LOWER(mt2.name) = 'image' THEN 0 ELSE 1 END, m2.thumbnail_path IS NULL, m2.created_at DESC
+        LIMIT 1
+      )
+      LEFT JOIN MediaTypes cover_type ON cover_type.id = cover.media_type_id
+      GROUP BY c.id
+      ORDER BY c.name COLLATE NOCASE
+    `).all();
+
+    return rows.map((row) => ({ ...row, ...coverUrlsForRow(row) }));
+  } catch (error) {
+    console.error('Error getting collection summaries:', error);
+    return [];
+  }
+}
+
+function getCollectionMedia(collectionId) {
+  return searchMedia({ collectionIds: [Number(collectionId)], sort: 'uploaded', limit: 1000, offset: 0 });
+}
+
+function getPeopleSummaries() {
+  try {
+    if (!db) return [];
+    const rows = db.prepare(`
+      SELECT
+        p.id,
+        p.name,
+        COUNT(DISTINCT m.id) as media_count,
+        MIN(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as start_year,
+        MAX(CASE WHEN m.capture_date IS NOT NULL AND m.capture_date != '' THEN strftime('%Y', m.capture_date) END) as end_year,
+        cover.file_path,
+        cover.thumbnail_path,
+        cover_type.name as media_type
+      FROM People p
+      LEFT JOIN MediaPeople mp ON mp.person_id = p.id
+      LEFT JOIN Media m ON m.id = mp.media_id
+      LEFT JOIN Media cover ON cover.id = (
+        SELECT m2.id
+        FROM MediaPeople mp2
+        JOIN Media m2 ON m2.id = mp2.media_id
+        LEFT JOIN MediaTypes mt2 ON mt2.id = m2.media_type_id
+        WHERE mp2.person_id = p.id
+        ORDER BY CASE WHEN LOWER(mt2.name) = 'image' THEN 0 ELSE 1 END, m2.thumbnail_path IS NULL, m2.created_at DESC
+        LIMIT 1
+      )
+      LEFT JOIN MediaTypes cover_type ON cover_type.id = cover.media_type_id
+      GROUP BY p.id
+      HAVING media_count > 0
+      ORDER BY p.name COLLATE NOCASE
+    `).all();
+
+    return rows.map((row) => ({ ...row, ...coverUrlsForRow(row) }));
+  } catch (error) {
+    console.error('Error getting people summaries:', error);
+    return [];
+  }
+}
+
+function getPersonMedia(personId) {
+  return searchMedia({ personIds: [Number(personId)], sort: 'uploaded', limit: 1000, offset: 0 });
+}
+
+function getTagSummaries() {
+  try {
+    if (!db) return [];
+    return db.prepare(`
+      SELECT
+        t.id,
+        t.name,
+        COUNT(DISTINCT mt.media_id) as media_count
+      FROM Tags t
+      LEFT JOIN MediaTags mt ON mt.tag_id = t.id
+      GROUP BY t.id
+      HAVING media_count > 0
+      ORDER BY media_count DESC, t.name COLLATE NOCASE ASC
+    `).all();
+  } catch (error) {
+    console.error('Error getting tag summaries:', error);
+    return [];
+  }
+}
+
+function getTagMedia(tagId) {
+  return searchMedia({ tagIds: [Number(tagId)], sort: 'uploaded', limit: 1000, offset: 0 });
+}
+
+function getDateSummaries() {
+  try {
+    if (!db) return [];
+    const rows = db.prepare(`
+      SELECT
+        strftime('%Y', m.capture_date) as year,
+        COUNT(m.id) as media_count,
+        MIN(m.capture_date) as start_date,
+        MAX(m.capture_date) as end_date,
+        cover.file_path,
+        cover.thumbnail_path,
+        cover_type.name as media_type
+      FROM Media m
+      LEFT JOIN Media cover ON cover.id = (
+        SELECT m2.id
+        FROM Media m2
+        LEFT JOIN MediaTypes mt2 ON mt2.id = m2.media_type_id
+        WHERE strftime('%Y', m2.capture_date) = strftime('%Y', m.capture_date)
+          AND m2.capture_date IS NOT NULL
+          AND m2.capture_date != ''
+        ORDER BY CASE WHEN LOWER(mt2.name) = 'image' THEN 0 ELSE 1 END, m2.thumbnail_path IS NULL, m2.capture_date ASC
+        LIMIT 1
+      )
+      LEFT JOIN MediaTypes cover_type ON cover_type.id = cover.media_type_id
+      WHERE m.capture_date IS NOT NULL AND m.capture_date != ''
+      GROUP BY year
+      ORDER BY year DESC
+    `).all();
+
+    return rows.map((row) => ({ ...row, ...coverUrlsForRow(row) }));
+  } catch (error) {
+    console.error('Error getting date summaries:', error);
+    return [];
+  }
+}
+
+function getDateMedia(year) {
+  return searchMedia({ dateFrom: `${year}-01-01`, dateTo: `${year}-12-31`, sort: 'oldest', limit: 1000, offset: 0 });
+}
+
 // Get all media types
 function getMediaTypes() {
   try {
@@ -859,6 +1018,14 @@ module.exports = {
   searchMedia,
   getMediaDetails,
   getDashboardSummary,
+  getCollectionSummaries,
+  getCollectionMedia,
+  getPeopleSummaries,
+  getPersonMedia,
+  getTagSummaries,
+  getTagMedia,
+  getDateSummaries,
+  getDateMedia,
   getMediaTypes,
   getSourceTypes,
   getCollections,

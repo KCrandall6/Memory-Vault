@@ -23,9 +23,13 @@ const Navbar = () => {
               <Nav.Link as={Link} to="/">Home</Nav.Link>
               <Nav.Link as={Link} to="/upload">Upload</Nav.Link>
               <Nav.Link as={Link} to="/search">Search</Nav.Link>
-              <NavDropdown title="More" id="basic-nav-dropdown">
-                <NavDropdown.Item as={Link} to="/help">Help</NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/about">About</NavDropdown.Item>
+              <NavDropdown title="Browse" id="browse-nav-dropdown">
+                <NavDropdown.Item as={Link} to="/browse/collections">Collections</NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/browse/people">People</NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/browse/tags">Tags</NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/browse/dates">Dates</NavDropdown.Item>
+                <NavDropdown.Divider />
+                <NavDropdown.Item as={Link} to="/recent-uploads">Recent Uploads</NavDropdown.Item>
               </NavDropdown>
             </Nav>
           </BootstrapNavbar.Collapse>

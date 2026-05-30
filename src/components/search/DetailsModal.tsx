@@ -102,18 +102,20 @@ return (
           {media ? (
             <Row className="g-4">
               <Col lg={7}>
-                <div className="position-relative bg-white rounded-3 p-3 shadow-sm h-100 d-flex justify-content-center align-items-center">
-                  {previewSource ? (
-                    <img
-                      src={previewSource}
-                      alt={media.title}
-                      className="img-fluid rounded"
-                      style={{ maxHeight: '70vh', objectFit: 'contain' }}
-                    />
-                  ) : (
-                    <i className={`bi ${icon} display-4 text-muted`}></i>
-                  )}
-                  <div className="position-absolute bottom-0 end-0 m-3 d-flex gap-2">
+                <div className="bg-white rounded-3 p-3 shadow-sm h-100 d-flex flex-column">
+                  <div className="flex-grow-1 d-flex justify-content-center align-items-center">
+                    {previewSource ? (
+                      <img
+                        src={previewSource}
+                        alt={media.title}
+                        className="img-fluid rounded"
+                        style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <i className={`bi ${icon} display-4 text-muted`}></i>
+                    )}
+                  </div>
+                  <div className="d-flex flex-wrap gap-2 justify-content-center border-top mt-3 pt-3">
                     <Button variant="outline-secondary" size="sm" onClick={() => setShowPreview(true)}>
                       View full screen
                     </Button>

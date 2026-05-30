@@ -268,7 +268,7 @@ const SearchPage = () => {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <h1 className="mb-1">Search Media</h1>
-          <div className="text-muted">Find memories by keywords, people, places, and more.</div>
+          <div className="text-muted">Find a specific memory by title, people, tags, dates, locations, or collections.</div>
         </div>
         {selectedCount > 0 && <span className="badge bg-secondary">{selectedCount} active filters</span>}
       </div>

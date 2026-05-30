@@ -178,23 +178,23 @@ const HomePage = () => {
                   <i className="bi bi-collection" aria-hidden="true" />
                 </span>
                 <Card.Title>Browse Collections</Card.Title>
-                <Card.Text>Use search filters to review everything grouped by collection.</Card.Text>
-                <Link to="/search" className="btn btn-outline-primary mt-auto align-self-start">
+                <Card.Text>Explore your vault by album-like collections and curated family groups.</Card.Text>
+                <Link to="/browse/collections" className="btn btn-outline-primary mt-auto align-self-start">
                   Open collections
                 </Link>
               </Card.Body>
             </Card>
           </Col>
           <Col md={6} xl={3}>
-            <Card className="home-action-card home-action-card--disabled h-100">
+            <Card className="home-action-card h-100">
               <Card.Body>
                 <span className="home-action-card__icon home-action-card__icon--muted">
                   <i className="bi bi-people" aria-hidden="true" />
                 </span>
                 <Card.Title>People & Tags</Card.Title>
-                <Card.Text>Dedicated people and tag browsing is coming soon. Search filters work today.</Card.Text>
-                <Link to="/search" className="btn btn-outline-secondary mt-auto align-self-start">
-                  Browse in search
+                <Card.Text>Explore your vault by collections, people, tags, and time.</Card.Text>
+                <Link to="/browse/people" className="btn btn-outline-secondary mt-auto align-self-start">
+                  Browse people
                 </Link>
               </Card.Body>
             </Card>

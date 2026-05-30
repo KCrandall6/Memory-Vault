@@ -209,6 +209,79 @@ function setupIpcHandlers() {
     }
   });
 
+
+  ipcMain.handle('get-collection-summaries', async () => {
+    try {
+      return await dbOperations.getCollectionSummaries();
+    } catch (error) {
+      console.error('Error getting collection summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-collection-media', async (_event, collectionId: number) => {
+    try {
+      return await dbOperations.getCollectionMedia(collectionId);
+    } catch (error) {
+      console.error('Error getting collection media:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-people-summaries', async () => {
+    try {
+      return await dbOperations.getPeopleSummaries();
+    } catch (error) {
+      console.error('Error getting people summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-person-media', async (_event, personId: number) => {
+    try {
+      return await dbOperations.getPersonMedia(personId);
+    } catch (error) {
+      console.error('Error getting person media:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-tag-summaries', async () => {
+    try {
+      return await dbOperations.getTagSummaries();
+    } catch (error) {
+      console.error('Error getting tag summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-tag-media', async (_event, tagId: number) => {
+    try {
+      return await dbOperations.getTagMedia(tagId);
+    } catch (error) {
+      console.error('Error getting tag media:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-date-summaries', async () => {
+    try {
+      return await dbOperations.getDateSummaries();
+    } catch (error) {
+      console.error('Error getting date summaries:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('get-date-media', async (_event, year: string) => {
+    try {
+      return await dbOperations.getDateMedia(year);
+    } catch (error) {
+      console.error('Error getting date media:', error);
+      return [];
+    }
+  });
+
   ipcMain.handle('update-media-details', async (_event, payload) => {
     try {
       const updated = await dbOperations.updateMediaWithRelations(payload.id, {
