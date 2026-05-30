@@ -230,6 +230,16 @@ const SearchPage = () => {
     }
   };
 
+  const handleDeleteDetails = async (media: DetailedMedia) => {
+    const response = await window.electronAPI.deleteMedia(Number(media.id));
+    if (response.success) {
+      setShowDetails(false);
+      setSelected(undefined);
+      setResults((prev) => prev.filter((item) => item.id !== media.id));
+      setResolvedResults((prev) => prev.filter((item) => item.id !== media.id));
+    }
+  };
+
   const handleSaveDetails = async (updated: DetailedMedia) => {
     try {
       const payload = {
@@ -407,6 +417,7 @@ const SearchPage = () => {
         media={selected}
         onClose={() => setShowDetails(false)}
         onSaveDetails={handleSaveDetails}
+        onDeleteDetails={handleDeleteDetails}
         availableMediaTypes={availableMediaTypes}
         availableCollections={availableCollections}
         availablePeople={availablePeople}

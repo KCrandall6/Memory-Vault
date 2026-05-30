@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Card, Container, Spinner } from 'react-bootstrap';
+import { Alert, Badge, Button, Card, Container, Form, Modal, Spinner } from 'react-bootstrap';
+import ConfirmationModal from '../components/common/ConfirmationModal';
 import RecentMediaCard from '../components/recent/RecentMediaCard';
 import { mediaTypeIcon, normalizeRecentMedia, RecentMediaItem } from '../components/recent/recentMedia';
 import { DetailedMedia } from '../components/search/DetailsModal';
@@ -12,7 +13,10 @@ type BrowseKind = 'collections' | 'people' | 'tags' | 'dates';
 type BrowseSummary = {
   id: string;
   name: string;
+  rawName: string;
   description?: string;
+  rawDescription?: string;
+  isDefaultCollection?: boolean;
   mediaCount: number;
   startYear?: string;
   endYear?: string;
@@ -61,10 +65,17 @@ const readString = (row: Record<string, unknown>, key: string) => {
 
 const normalizeSummary = (row: Record<string, unknown>, kind: BrowseKind): BrowseSummary => {
   const year = readString(row, 'year');
+  const rawName = kind === 'dates' ? String(year || 'Unknown year') : String(row.name || 'Untitled');
+  const isDefaultCollection = kind === 'collections' && rawName.toLowerCase() === 'general';
+  const rawDescription = readString(row, 'description');
+
   return {
     id: String(row.id || year || ''),
-    name: kind === 'dates' ? String(year || 'Unknown year') : String(row.name || 'Untitled'),
-    description: readString(row, 'description'),
+    name: isDefaultCollection ? 'Unfiled Memories' : rawName,
+    rawName,
+    description: rawDescription || (isDefaultCollection ? 'Memories not assigned to a specific collection.' : undefined),
+    rawDescription,
+    isDefaultCollection,
     mediaCount: Number(row.media_count || row.mediaCount || 0),
     startYear: readString(row, 'start_year') || readString(row, 'startYear'),
     endYear: readString(row, 'end_year') || readString(row, 'endYear'),
@@ -131,13 +142,14 @@ const BrowseCard = ({ item, kind, selected, onClick }: { item: BrowseSummary; ki
   const range = yearRangeLabel(item);
 
   return (
-    <button type="button" className={`browse-card ${selected ? 'browse-card--selected' : ''}`} onClick={onClick}>
+    <button type="button" className={`browse-card ${kind === 'collections' ? 'browse-card--collection' : ''} ${item.isDefaultCollection ? 'browse-card--default' : ''} ${selected ? 'browse-card--selected' : ''}`} onClick={onClick}>
       <div className="browse-card__cover">
         <BrowseCover item={item} icon={config.icon} />
       </div>
       <div className="browse-card__body">
         <h3>{item.name}</h3>
         {item.description && <p>{item.description}</p>}
+        {item.isDefaultCollection && <Badge bg="warning" text="dark" className="mb-2">Default collection</Badge>}
         <div className="browse-card__meta">
           <Badge bg="light" text="dark">{pluralizeMemories(item.mediaCount)}</Badge>
           {range && <span>{range}</span>}
@@ -188,31 +200,48 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
   const [loading, setLoading] = useState(true);
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEditCollection, setShowEditCollection] = useState(false);
+  const [collectionName, setCollectionName] = useState('');
+  const [collectionDescription, setCollectionDescription] = useState('');
+  const [collectionSaving, setCollectionSaving] = useState(false);
+  const [showDeleteCollection, setShowDeleteCollection] = useState(false);
+  const [collectionDeleting, setCollectionDeleting] = useState(false);
 
   const handleSavedMemory = useCallback((media: DetailedMedia) => {
     setMemories((prev) => prev.map((item) => (item.id === media.id ? normalizeRecentMedia(media as unknown as Record<string, unknown>) : item)));
   }, []);
 
-  const { openMemory, detailsModal } = useMemoryDetails({ onSaved: handleSavedMemory });
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const rows = await fetchSummaries(kind);
-        setSummaries((rows || []).map((row) => normalizeSummary(row, kind)));
+  const loadSummaries = useCallback(async (clearSelection = true) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await fetchSummaries(kind);
+      const normalized = (rows || []).map((row) => normalizeSummary(row, kind));
+      setSummaries(normalized);
+      if (clearSelection) {
         setSelected(undefined);
         setMemories([]);
-      } catch (err) {
-        console.error('Error loading browse summaries', err);
-        setError(`Unable to load ${config.title.toLowerCase()} right now.`);
-      } finally {
-        setLoading(false);
+      } else {
+        setSelected((prev) => (prev ? normalized.find((item) => item.id === prev.id) || prev : prev));
       }
-    };
-    load();
+    } catch (err) {
+      console.error('Error loading browse summaries', err);
+      setError(`Unable to load ${config.title.toLowerCase()} right now.`);
+    } finally {
+      setLoading(false);
+    }
   }, [config.title, kind]);
+
+  const handleDeletedMemory = useCallback((id: string) => {
+    setMemories((prev) => prev.filter((item) => item.id !== id));
+    loadSummaries(false);
+  }, [loadSummaries]);
+
+  const { openMemory, detailsModal } = useMemoryDetails({ onSaved: handleSavedMemory, onDeleted: handleDeletedMemory });
+
+  useEffect(() => {
+    loadSummaries();
+  }, [loadSummaries]);
 
   const openGroup = async (item: BrowseSummary) => {
     setSelected(item);
@@ -227,6 +256,54 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
       setMemories([]);
     } finally {
       setLoadingMedia(false);
+    }
+  };
+
+  const openEditCollection = () => {
+    if (!selected || kind !== 'collections') return;
+    setCollectionName(selected.rawName || selected.name);
+    setCollectionDescription(selected.rawDescription || '');
+    setShowEditCollection(true);
+  };
+
+  const saveCollectionDetails = async () => {
+    if (!selected || !collectionName.trim()) return;
+    setCollectionSaving(true);
+    try {
+      const response = await window.electronAPI.updateCollectionDetails({
+        id: Number(selected.id),
+        name: collectionName.trim(),
+        description: collectionDescription,
+      });
+      if (response.success) {
+        setShowEditCollection(false);
+        await loadSummaries(false);
+      } else {
+        setError(response.error || 'Unable to save collection details.');
+      }
+    } finally {
+      setCollectionSaving(false);
+    }
+  };
+
+  const deleteSelectedCollection = async () => {
+    if (!selected) return;
+    setCollectionDeleting(true);
+    try {
+      const response = await window.electronAPI.deleteCollection(Number(selected.id));
+      if (response.success) {
+        setShowDeleteCollection(false);
+        setSelected(undefined);
+        setMemories([]);
+        await loadSummaries();
+      } else if (response.blocked) {
+        setShowDeleteCollection(false);
+        setError('This collection contains memories. Move or edit those memories before deleting the collection.');
+      } else {
+        setError(response.error || 'Unable to delete collection.');
+      }
+    } finally {
+      setCollectionDeleting(false);
     }
   };
 
@@ -247,7 +324,7 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
         {error && <Alert variant="warning">{error}</Alert>}
 
         {loading ? (
-          <div className={kind === 'tags' ? 'browse-tag-grid' : 'browse-card-grid'}>
+          <div className={kind === 'tags' ? 'browse-tag-grid' : kind === 'collections' ? 'browse-card-grid browse-card-grid--collections' : 'browse-card-grid'}>
             {Array.from({ length: kind === 'tags' ? 12 : 6 }).map((_, index) => (
               <Card className="home-recent-card home-recent-card--skeleton" key={index}>
                 <div className="home-recent-card__preview" />
@@ -270,7 +347,7 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
             ))}
           </div>
         ) : (
-          <div className="browse-card-grid">
+          <div className={kind === 'collections' ? 'browse-card-grid browse-card-grid--collections' : 'browse-card-grid'}>
             {summaries.map((item) => (
               <BrowseCard key={item.id} item={item} kind={kind} selected={selected?.id === item.id} onClick={() => openGroup(item)} />
             ))}
@@ -286,6 +363,32 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
           </div>
           {loadingMedia && <Spinner animation="border" role="status" size="sm" className="text-primary" />}
         </div>
+
+        {selected && kind === 'collections' && (
+          <Card className="browse-collection-details border-0 mb-3">
+            <Card.Body>
+              <div>
+                <div className="text-muted small mb-1">Collection details</div>
+                <p className="mb-0">{selected.description || 'No description yet.'}</p>
+                {selected.mediaCount > 0 && (
+                  <div className="text-muted small mt-2">Delete is available only when a collection is empty.</div>
+                )}
+              </div>
+              <div className="d-flex flex-wrap gap-2">
+                <Button variant="outline-primary" size="sm" onClick={openEditCollection}>Edit collection</Button>
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  disabled={selected.mediaCount > 0}
+                  title={selected.mediaCount > 0 ? 'Move memories out of this collection before deleting it.' : undefined}
+                  onClick={() => setShowDeleteCollection(true)}
+                >
+                  Delete collection
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        )}
 
         {!selected ? (
           <Card className="browse-selection-empty border-0">
@@ -309,6 +412,56 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
           </div>
         )}
       </section>
+      <Modal show={showEditCollection} onHide={() => setShowEditCollection(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit collection</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group controlId="collectionName">
+            <Form.Label>Collection name</Form.Label>
+            <Form.Control
+              value={collectionName}
+              onChange={(event) => setCollectionName(event.target.value)}
+              placeholder="Collection name"
+              required
+            />
+          </Form.Group>
+          <Form.Group controlId="collectionDescription" className="mt-3">
+            <Form.Label>Description</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={collectionDescription}
+              onChange={(event) => setCollectionDescription(event.target.value)}
+              placeholder="Describe this collection"
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditCollection(false)} disabled={collectionSaving}>Cancel</Button>
+          <Button
+            variant="success"
+            style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+            disabled={!collectionName.trim() || collectionSaving}
+            onClick={saveCollectionDetails}
+          >
+            {collectionSaving ? 'Saving…' : 'Save collection'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <ConfirmationModal
+        show={showDeleteCollection}
+        title="Delete collection?"
+        message="This deletes only the empty collection. No memories or archived files will be deleted."
+        cancelLabel="Keep collection"
+        confirmLabel="Delete collection"
+        destructive
+        confirming={collectionDeleting}
+        onCancel={() => setShowDeleteCollection(false)}
+        onConfirm={deleteSelectedCollection}
+      />
+
       {detailsModal}
     </Container>
   );

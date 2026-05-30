@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Badge, Button, Col, Modal, Row } from 'react-bootstrap';
+import ConfirmationModal from '../common/ConfirmationModal';
 import EditDetailsModal, { EditableDetails } from './EditDetailsModal';
 import { ReferenceOption } from './SearchBar';
 
@@ -25,6 +26,7 @@ type DetailsModalProps = {
   media?: DetailedMedia;
   onClose: () => void;
   onSaveDetails: (updated: DetailedMedia) => void;
+  onDeleteDetails?: (media: DetailedMedia) => Promise<void> | void;
   availableMediaTypes: ReferenceOption[];
   availableCollections: ReferenceOption[];
   availablePeople: ReferenceOption[];
@@ -43,6 +45,7 @@ const DetailsModal = ({
   media,
   onClose,
   onSaveDetails,
+  onDeleteDetails,
   availableMediaTypes,
   availableCollections,
   availablePeople,
@@ -50,6 +53,8 @@ const DetailsModal = ({
 }: DetailsModalProps) => {
   const [showPreview, setShowPreview] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const previewSource = useMemo(() => {
     if (!media) return undefined;
@@ -72,7 +77,7 @@ const DetailsModal = ({
     setEditing(false);
   };
 
-    const handleDownload = async () => {
+  const handleDownload = async () => {
     if (!media || (!media.filePath && !media.fileUrl)) return;
     const sourcePath = media.filePath || media.fileUrl || '';
     if (!sourcePath) return;
@@ -86,13 +91,25 @@ const DetailsModal = ({
     }
   };
 
+
+  const handleConfirmDelete = async () => {
+    if (!media || !onDeleteDetails) return;
+    setDeleting(true);
+    try {
+      await onDeleteDetails(media);
+      setConfirmDelete(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const icon = media ? mediaTypeIcon[media.mediaType] ?? 'bi-file-earmark' : 'bi-file-earmark';
 
   const mediaTypeLabel = media?.mediaType
     ? media.mediaType.charAt(0).toUpperCase() + media.mediaType.slice(1)
     : '';
 
-return (
+  return (
     <>
       <Modal show={show} onHide={onClose} fullscreen centered>
         <Modal.Header closeButton>
@@ -206,6 +223,14 @@ return (
                       )}
                     </div>
                   </div>
+
+                  {onDeleteDetails && (
+                    <div className="mt-auto pt-4 border-top d-flex justify-content-end">
+                      <Button variant="outline-danger" size="sm" onClick={() => setConfirmDelete(true)}>
+                        Delete memory
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </Col>
             </Row>
@@ -236,6 +261,20 @@ return (
           </Button>
         </Modal.Body>
       </Modal>
+
+      {media && (
+        <ConfirmationModal
+          show={confirmDelete}
+          title="Delete memory?"
+          message="This removes the memory from the vault index and cleans up people/tag links. The archived file will not be deleted from disk."
+          cancelLabel="Keep memory"
+          confirmLabel="Delete memory"
+          destructive
+          confirming={deleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
 
       {media && (
         <EditDetailsModal

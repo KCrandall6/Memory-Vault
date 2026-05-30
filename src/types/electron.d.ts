@@ -24,6 +24,9 @@ interface ElectronAPI {
   getTagMedia: (tagId: number) => Promise<any[]>;
   getDateSummaries: () => Promise<any[]>;
   getDateMedia: (year: string) => Promise<any[]>;
+  updateCollectionDetails: (payload: { id: number; name: string; description?: string }) => Promise<{ success: boolean; collection?: any; error?: string }>;
+  deleteCollection: (id: number) => Promise<{ success: boolean; blocked?: boolean; mediaCount?: number; error?: string }>;
+  deleteMedia: (id: number) => Promise<{ success: boolean; error?: string }>;
   getMediaDetails: (id: number) => Promise<any | null>;
   updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
   downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>

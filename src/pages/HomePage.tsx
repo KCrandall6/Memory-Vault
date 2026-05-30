@@ -36,7 +36,11 @@ const HomePage = () => {
     setRecentUploads((prev) => prev.map((item) => (item.id === media.id ? normalizeRecentMedia(media as unknown as Record<string, unknown>) : item)));
   }, []);
 
-  const { openMemory, detailsModal } = useMemoryDetails({ onSaved: handleSavedMemory });
+  const handleDeletedMemory = useCallback((id: string) => {
+    setRecentUploads((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const { openMemory, detailsModal } = useMemoryDetails({ onSaved: handleSavedMemory, onDeleted: handleDeletedMemory });
 
   useEffect(() => {
     let isMounted = true;

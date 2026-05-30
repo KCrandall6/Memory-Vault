@@ -7,6 +7,7 @@ type ReferenceRow = { id: number | string; name: string };
 
 type UseMemoryDetailsOptions = {
   onSaved?: (media: DetailedMedia) => void;
+  onDeleted?: (id: string) => void;
 };
 
 const mapReference = (items: ReferenceRow[] = []): ReferenceOption[] =>
@@ -29,7 +30,7 @@ export const normalizeDetailedMedia = (row: Record<string, unknown>): DetailedMe
   fileUrl: row.file_url ? String(row.file_url) : row.fileUrl ? String(row.fileUrl) : undefined,
 });
 
-export const useMemoryDetails = ({ onSaved }: UseMemoryDetailsOptions = {}) => {
+export const useMemoryDetails = ({ onSaved, onDeleted }: UseMemoryDetailsOptions = {}) => {
   const [availableMediaTypes, setAvailableMediaTypes] = useState<ReferenceOption[]>([]);
   const [availableCollections, setAvailableCollections] = useState<ReferenceOption[]>([]);
   const [availablePeople, setAvailablePeople] = useState<ReferenceOption[]>([]);
@@ -106,12 +107,22 @@ export const useMemoryDetails = ({ onSaved }: UseMemoryDetailsOptions = {}) => {
     }
   }, [onSaved]);
 
+  const handleDeleteDetails = useCallback(async (media: DetailedMedia) => {
+    const response = await window.electronAPI.deleteMedia(Number(media.id));
+    if (response.success) {
+      setShowDetails(false);
+      setSelected(undefined);
+      onDeleted?.(media.id);
+    }
+  }, [onDeleted]);
+
   const detailsModal = (
     <DetailsModal
       show={showDetails}
       media={selected}
       onClose={() => setShowDetails(false)}
       onSaveDetails={handleSaveDetails}
+      onDeleteDetails={handleDeleteDetails}
       availableMediaTypes={availableMediaTypes}
       availableCollections={availableCollections}
       availablePeople={availablePeople}

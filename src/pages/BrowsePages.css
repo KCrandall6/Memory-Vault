@@ -118,3 +118,55 @@
   color: #4a6fa5;
   font-size: 2.25rem;
 }
+
+.browse-card-grid--collections {
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1.25rem;
+}
+
+.browse-card--collection {
+  border-radius: 26px;
+  box-shadow: 0 18px 48px rgba(30, 58, 95, 0.11);
+}
+
+.browse-card--collection .browse-card__cover {
+  aspect-ratio: 16 / 11;
+  font-size: 4rem;
+}
+
+.browse-card--collection .browse-card__body {
+  min-height: 178px;
+  padding: 1.35rem;
+}
+
+.browse-card--collection .browse-card__body h3 {
+  font-size: 1.35rem;
+}
+
+.browse-card--default {
+  border-color: rgba(255, 184, 0, 0.55);
+  background: linear-gradient(180deg, #fff 0%, #fffaf0 100%);
+}
+
+.browse-collection-details {
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(30, 58, 95, 0.07);
+}
+
+.browse-collection-details .card-body {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+@media (max-width: 575.98px) {
+  .browse-card-grid--collections {
+    grid-template-columns: 1fr;
+  }
+
+  .browse-collection-details .card-body {
+    flex-direction: column;
+  }
+}

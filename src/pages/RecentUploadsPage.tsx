@@ -20,7 +20,11 @@ const RecentUploadsPage = () => {
     setItems((prev) => prev.map((item) => (item.id === media.id ? normalizeRecentMedia(media as unknown as Record<string, unknown>) : item)));
   }, []);
 
-  const { openMemory, detailsModal } = useMemoryDetails({ onSaved: handleSavedMemory });
+  const handleDeletedMemory = useCallback((id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const { openMemory, detailsModal } = useMemoryDetails({ onSaved: handleSavedMemory, onDeleted: handleDeletedMemory });
 
   const loadRecent = useCallback(async (offset = 0) => {
     const isInitial = offset === 0;

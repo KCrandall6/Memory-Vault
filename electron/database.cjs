@@ -783,6 +783,40 @@ function getDateMedia(year) {
   return searchMedia({ dateFrom: `${year}-01-01`, dateTo: `${year}-12-31`, sort: 'oldest', limit: 1000, offset: 0 });
 }
 
+
+function updateCollectionDetails(id, { name, description = '' }) {
+  try {
+    if (!db) throw new Error('Database not initialized');
+    const trimmedName = String(name || '').trim();
+    if (!trimmedName) throw new Error('Collection name is required');
+
+    db.prepare('UPDATE Collections SET name = ?, description = ? WHERE id = ?')
+      .run(trimmedName, description || '', Number(id));
+
+    return db.prepare('SELECT * FROM Collections WHERE id = ?').get(Number(id));
+  } catch (error) {
+    console.error('Error updating collection details:', error);
+    throw error;
+  }
+}
+
+function deleteCollectionIfEmpty(id) {
+  try {
+    if (!db) throw new Error('Database not initialized');
+    const collectionId = Number(id);
+    const mediaCount = db.prepare('SELECT COUNT(*) as count FROM Media WHERE collection_id = ?').get(collectionId).count;
+    if (mediaCount > 0) {
+      return { success: false, blocked: true, mediaCount };
+    }
+
+    const info = db.prepare('DELETE FROM Collections WHERE id = ?').run(collectionId);
+    return { success: info.changes > 0, blocked: false, mediaCount: 0 };
+  } catch (error) {
+    console.error('Error deleting collection:', error);
+    throw error;
+  }
+}
+
 // Get all media types
 function getMediaTypes() {
   try {
@@ -1026,6 +1060,8 @@ module.exports = {
   getTagMedia,
   getDateSummaries,
   getDateMedia,
+  updateCollectionDetails,
+  deleteCollectionIfEmpty,
   getMediaTypes,
   getSourceTypes,
   getCollections,
@@ -1036,5 +1072,6 @@ module.exports = {
   linkTagToMedia,
   linkPersonToMedia,
   addCollection,
-  updateMediaWithRelations
+  updateMediaWithRelations,
+  deleteMedia
 };

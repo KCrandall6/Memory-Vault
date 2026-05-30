@@ -282,6 +282,39 @@ function setupIpcHandlers() {
     }
   });
 
+
+  ipcMain.handle('update-collection-details', async (_event, payload: { id: number; name: string; description?: string }) => {
+    try {
+      const collection = await dbOperations.updateCollectionDetails(payload.id, {
+        name: payload.name,
+        description: payload.description || ''
+      });
+      return { success: true, collection };
+    } catch (error) {
+      console.error('Error updating collection details:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('delete-collection', async (_event, id: number) => {
+    try {
+      return await dbOperations.deleteCollectionIfEmpty(id);
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('delete-media', async (_event, id: number) => {
+    try {
+      const deleted = await dbOperations.deleteMedia(id);
+      return { success: deleted };
+    } catch (error) {
+      console.error('Error deleting media:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
   ipcMain.handle('update-media-details', async (_event, payload) => {
     try {
       const updated = await dbOperations.updateMediaWithRelations(payload.id, {
