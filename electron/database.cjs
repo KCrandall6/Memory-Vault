@@ -574,6 +574,54 @@ function updateMediaWithRelations(id, mediaData) {
   }
 }
 
+
+function getDashboardSummary() {
+  try {
+    if (!db) {
+      return {
+        totalMedia: 0,
+        collectionsCount: 0,
+        peopleCount: 0,
+        tagsCount: 0,
+        mediaTypeCounts: {}
+      };
+    }
+
+    const totalMedia = db.prepare('SELECT COUNT(*) as count FROM Media').get().count || 0;
+    const collectionsCount = db.prepare('SELECT COUNT(*) as count FROM Collections').get().count || 0;
+    const peopleCount = db.prepare('SELECT COUNT(*) as count FROM People').get().count || 0;
+    const tagsCount = db.prepare('SELECT COUNT(*) as count FROM Tags').get().count || 0;
+    const typeRows = db.prepare(`
+      SELECT LOWER(mt.name) as media_type, COUNT(m.id) as count
+      FROM MediaTypes mt
+      LEFT JOIN Media m ON m.media_type_id = mt.id
+      GROUP BY mt.id, mt.name
+    `).all();
+
+    const mediaTypeCounts = typeRows.reduce((counts, row) => {
+      counts[row.media_type] = row.count || 0;
+      return counts;
+    }, {});
+
+    return {
+      totalMedia,
+      collectionsCount,
+      peopleCount,
+      tagsCount,
+      mediaTypeCounts
+    };
+  } catch (error) {
+    console.error('Error getting dashboard summary:', error);
+    return {
+      totalMedia: 0,
+      collectionsCount: 0,
+      peopleCount: 0,
+      tagsCount: 0,
+      mediaTypeCounts: {}
+    };
+  }
+}
+
 // Get all media types
 function getMediaTypes() {
   try {
@@ -808,6 +856,7 @@ module.exports = {
   addMedia,
   searchMedia,
   getMediaDetails,
+  getDashboardSummary,
   getMediaTypes,
   getSourceTypes,
   getCollections,

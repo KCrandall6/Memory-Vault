@@ -2,6 +2,14 @@
 import type { IpcRendererEvent } from 'electron';
 const { contextBridge, ipcRenderer } = require('electron');
 
+type DashboardSummary = {
+  totalMedia: number;
+  collectionsCount: number;
+  peopleCount: number;
+  tagsCount: number;
+  mediaTypeCounts: Record<string, number>;
+};
+
 interface ElectronAPI {
   selectFiles: () => Promise<any[]>;
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
@@ -11,6 +19,7 @@ interface ElectronAPI {
   getTags: () => Promise<any[]>;
   getPeople: () => Promise<any[]>;
   searchMedia: (criteria: any) => Promise<any[]>;
+  getDashboardSummary: () => Promise<DashboardSummary>;
   getMediaDetails: (id: number) => Promise<any | null>;
   updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
   downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>
@@ -27,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTags: () => ipcRenderer.invoke('get-tags'),
   getPeople: () => ipcRenderer.invoke('get-people'),
   searchMedia: (criteria) => ipcRenderer.invoke('search-media', criteria),
+  getDashboardSummary: () => ipcRenderer.invoke('get-dashboard-summary'),
   getMediaDetails: (id) => ipcRenderer.invoke('get-media-details', id),
   updateMediaDetails: (payload) => ipcRenderer.invoke('update-media-details', payload),
   downloadMediaFile: (payload) => ipcRenderer.invoke('download-media-file', payload),

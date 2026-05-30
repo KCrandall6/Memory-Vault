@@ -1,3 +1,11 @@
+type DashboardSummary = {
+  totalMedia: number;
+  collectionsCount: number;
+  peopleCount: number;
+  tagsCount: number;
+  mediaTypeCounts: Record<string, number>;
+};
+
 interface ElectronAPI {
   selectFiles: () => Promise<any[]>;
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
@@ -7,6 +15,7 @@ interface ElectronAPI {
   getTags: () => Promise<any[]>;
   getPeople: () => Promise<any[]>;
   searchMedia: (criteria: any) => Promise<any[]>;
+  getDashboardSummary: () => Promise<DashboardSummary>;
   getMediaDetails: (id: number) => Promise<any | null>;
   updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
   downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>

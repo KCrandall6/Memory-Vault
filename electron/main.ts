@@ -193,6 +193,21 @@ function setupIpcHandlers() {
     }
   });
 
+  ipcMain.handle('get-dashboard-summary', async () => {
+    try {
+      return await dbOperations.getDashboardSummary();
+    } catch (error) {
+      console.error('Error getting dashboard summary:', error);
+      return {
+        totalMedia: 0,
+        collectionsCount: 0,
+        peopleCount: 0,
+        tagsCount: 0,
+        mediaTypeCounts: {}
+      };
+    }
+  });
+
   ipcMain.handle('update-media-details', async (_event, payload) => {
     try {
       const updated = await dbOperations.updateMediaWithRelations(payload.id, {

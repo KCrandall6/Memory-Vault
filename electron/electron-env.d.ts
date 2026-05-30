@@ -21,6 +21,14 @@ declare namespace NodeJS {
   }
 }
 
+type DashboardSummary = {
+  totalMedia: number;
+  collectionsCount: number;
+  peopleCount: number;
+  tagsCount: number;
+  mediaTypeCounts: Record<string, number>;
+};
+
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
   electronAPI: {
@@ -33,6 +41,7 @@ interface Window {
     getTags: () => Promise<any[]>;
     getPeople: () => Promise<any[]>;
     searchMedia: (criteria: any) => Promise<any[]>;
+    getDashboardSummary: () => Promise<DashboardSummary>;
     getMediaDetails: (id: number) => Promise<any | null>;
     updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
     downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>
