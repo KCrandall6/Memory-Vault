@@ -47,7 +47,7 @@ const normalizeResult = (row: any): SearchResult => ({
   mediaTypeId: row.media_type_id,
   tags: row.tags || [],
   people: row.people || [],
-  thumbnail: row.thumbnail_url || row.thumbnail_path || undefined,
+  thumbnail: row.thumbnail_url || undefined,
   filePath: row.file_path || undefined,
   fileUrl: row.file_url || undefined,
 });
@@ -63,7 +63,7 @@ const normalizeDetails = (row: any): DetailedMedia => ({
   mediaType: row.media_type ? String(row.media_type).toLowerCase() : row.mediaType || 'document',
   tags: row.tags || [],
   people: row.people || [],
-  thumbnail: row.thumbnail_url || row.thumbnail_path || row.thumbnail || undefined,
+  thumbnail: row.thumbnail_url || row.thumbnail || undefined,
   filePath: row.file_path || row.filePath || undefined,
   fileUrl: row.file_url || row.fileUrl || undefined,
 });
@@ -258,7 +258,6 @@ const SearchPage = () => {
   const getThumbnail = (result: SearchResult) => {
     if (result.thumbnail && result.thumbnail.length > 0) return result.thumbnail;
     if (result.fileUrl && result.fileUrl.length > 0) return result.fileUrl;
-    if (result.filePath && result.filePath.length > 0) return result.filePath;
     return undefined;
   };
 

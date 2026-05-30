@@ -11,6 +11,10 @@ export default defineConfig({
       {
         // Main process entry file
         entry: 'electron/main.ts',
+        onstart(options) {
+          // Launch the Electron shell after Vite has compiled the main process.
+          options.startup();
+        },
         vite: {
           build: {
             sourcemap: true,

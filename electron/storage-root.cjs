@@ -1,6 +1,7 @@
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { fileURLToPath } = require('url');
 
 const ARCHIVE_FOLDER_NAME = 'Memory Vault Archive';
 const DATABASE_FILENAME = 'memoryvault.db';
@@ -31,7 +32,7 @@ function ensureArchiveDirectory() {
 
 function resolveArchiveFilePath(relativePath) {
   if (!relativePath) return null;
-  const cleaned = relativePath.startsWith('file://') ? new URL(relativePath).pathname : relativePath;
+  const cleaned = relativePath.startsWith('file://') ? fileURLToPath(relativePath) : relativePath;
   const normalized = cleaned.replace(/\\/g, '/');
   if (path.isAbsolute(normalized)) return normalized;
   return path.join(resolveStorageRoot(), normalized);

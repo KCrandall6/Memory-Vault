@@ -30,6 +30,36 @@ export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 
+
+function resolvePreviewFilePath(filePathOrUrl: string): string | null {
+  if (!filePathOrUrl) return null;
+
+  if (filePathOrUrl.startsWith('file://')) {
+    return fileURLToPath(filePathOrUrl);
+  }
+
+  if (/^(data|blob|https?):/i.test(filePathOrUrl)) {
+    return null;
+  }
+
+  return resolveArchiveFilePath(filePathOrUrl) || filePathOrUrl;
+}
+
+function getMimeType(filePath: string) {
+  const ext = path.extname(filePath).toLowerCase().substring(1);
+
+  if (['jpg', 'jpeg'].includes(ext)) return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'mp4') return 'video/mp4';
+  if (ext === 'mp3') return 'audio/mpeg';
+  if (ext === 'wav') return 'audio/wav';
+
+  return 'application/octet-stream';
+}
+
 // Set up IPC handlers
 function setupIpcHandlers() {
   // File selection handler
@@ -60,27 +90,19 @@ function setupIpcHandlers() {
   });
   
   // File preview handler
-  ipcMain.handle('get-file-preview', async (_, filePath) => {
+  ipcMain.handle('get-file-preview', async (_, filePathOrUrl: string) => {
     try {
-      console.log('Generating preview for:', filePath);
-      
-      // Read the file
-      const data = await fs.readFile(filePath);
-      
-      // Get file extension
-      const ext = path.extname(filePath).toLowerCase().substring(1);
-      
-      // Convert to base64
+      const previewPath = resolvePreviewFilePath(filePathOrUrl);
+      if (!previewPath) {
+        return null;
+      }
+
+      console.log('Generating preview for:', previewPath);
+
+      const data = await fs.readFile(previewPath);
       const base64 = data.toString('base64');
-      
-      // Create data URL
-      let mimeType = 'application/octet-stream';
-      if (['jpg', 'jpeg'].includes(ext)) mimeType = 'image/jpeg';
-      else if (ext === 'png') mimeType = 'image/png';
-      else if (ext === 'gif') mimeType = 'image/gif';
-      else if (ext === 'pdf') mimeType = 'application/pdf';
-      else if (ext === 'mp4') mimeType = 'video/mp4';
-      
+      const mimeType = getMimeType(previewPath);
+
       console.log('Preview generated with mime type:', mimeType);
       return {
         dataUrl: `data:${mimeType};base64,${base64}`,

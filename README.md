@@ -9,14 +9,16 @@ Memory Vault is an Electron + React app for organizing photos, documents, videos
 - npm
 
 ### Run the Electron dev app
-The Vite dev server is wired to Electron through `vite-plugin-electron`. Launch the full desktop app (with access to `file://` previews) via:
+Use the full Electron development command for normal testing:
 
 ```bash
 npm install
 npm run dev
 ```
 
-This starts Vite and automatically opens an Electron window pointed at the dev server. If you manually open the `http://localhost:5173` URL in a normal browser, local file previews will be blocked by the browser sandbox; use the Electron window instead.
+`npm run dev` starts the Vite renderer dev server and, through `vite-plugin-electron`, opens the real Electron shell pointed at that dev server. This keeps the app in the same architecture used by production: the renderer talks to the preload bridge, and the preload bridge calls Electron IPC handlers for file selection, preview generation, database search/details, saves, and downloads.
+
+Do **not** use a normal browser tab as your primary development target. Browser-only Vite testing cannot access arbitrary local files and does not have the Electron preload bridge, so selected-file previews and archived media URLs can behave differently or fail entirely. If you only need a renderer isolation check, you can run `npm run renderer:dev`, but local-file workflows must be verified with `npm run dev`.
 
 ### Linting
 
@@ -26,7 +28,7 @@ npm run lint
 
 ## Building an installer / portable build
 
-The project is configured for electron-builder. Generate platform installers (including a Windows `.exe`) with:
+The project is configured for electron-builder. Generate the production renderer (`dist/`), Electron main/preload output (`dist-electron/`), and platform installers (including a Windows `.exe`) with:
 
 ```bash
 npm run build
