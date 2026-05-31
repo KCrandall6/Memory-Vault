@@ -1,5 +1,17 @@
 .vault-settings-page {
+  width: 100%;
+  max-width: 1280px;
+  margin-right: auto;
+  margin-left: auto;
   color: #1f2d3d;
+}
+
+.vault-settings-grid {
+  align-items: stretch;
+}
+
+.vault-settings-grid > [class*='col'] {
+  min-width: 0;
 }
 
 .vault-settings-hero {

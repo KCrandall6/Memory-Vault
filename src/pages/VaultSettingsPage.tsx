@@ -291,7 +291,7 @@ function VaultSettingsPage() {
         </Alert>
       )}
 
-      <Row className="g-4">
+      <Row className="g-4 vault-settings-grid">
         <Col xs={12}>
           <Card className="vault-settings-card h-100">
             <Card.Body>
@@ -320,7 +320,7 @@ function VaultSettingsPage() {
           </Card>
         </Col>
 
-        <Col lg={7}>
+        <Col lg={6}>
           <Card className="vault-settings-card h-100">
             <Card.Body>
               <div className="vault-settings-card__header">
@@ -365,6 +365,72 @@ function VaultSettingsPage() {
                 <MetricCard label="Drive free space" value={formatBytes(summary.storage.diskFreeBytes)} icon="bi-device-hdd" accent="green" />
                 <MetricCard label="Drive usage" value={`${formatBytes(summary.storage.diskUsedBytes)} / ${formatBytes(summary.storage.diskTotalBytes)} · ${diskUsedLabel}`} icon="bi-pie-chart" accent="slate" />
               </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        <Col lg={6}>
+          <Card className="vault-settings-card h-100">
+            <Card.Body>
+              <div className="vault-settings-card__header">
+                <div>
+                  <p className="vault-settings-eyebrow">Integrity / File Checks</p>
+                  <h2>File integrity checks</h2>
+                  <p className="vault-settings-muted">These checks only report issues. Nothing is deleted or modified.</p>
+                </div>
+                <Button variant="outline-primary" onClick={loadVaultHealth}>Refresh checks</Button>
+              </div>
+              <Row className="g-3">
+                <Col md={6}>
+                  <div className="vault-settings-integrity-box">
+                    <div>
+                      <span>Missing files</span>
+                      <strong>{summary.integrity.missingFilesCount}</strong>
+                    </div>
+                    <p>Media records whose archived file cannot be found on disk.</p>
+                    {summary.integrity.missingFiles.length > 0 && (
+                      <Button variant="link" className="p-0" onClick={() => setShowMissingDetails((current) => !current)}>
+                        {showMissingDetails ? 'Hide details' : 'View details'}
+                      </Button>
+                    )}
+                    {showMissingDetails && (
+                      <ul className="vault-settings-file-list">
+                        {summary.integrity.missingFiles.map((file) => (
+                          <li key={`${file.id}-${file.filePath}`}>
+                            <strong>{file.title || file.fileName}</strong>
+                            <code>{file.filePath}</code>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <div className="vault-settings-integrity-box">
+                    <div>
+                      <span>Orphan files</span>
+                      <strong>{summary.integrity.orphanFilesCount}</strong>
+                    </div>
+                    <p>Files in the archive folder that are not referenced by media records.</p>
+                    {summary.integrity.orphanFiles.length > 0 && (
+                      <Button variant="link" className="p-0" onClick={() => setShowOrphanDetails((current) => !current)}>
+                        {showOrphanDetails ? 'Hide details' : 'View details'}
+                      </Button>
+                    )}
+                    {showOrphanDetails && (
+                      <ul className="vault-settings-file-list">
+                        {summary.integrity.orphanFiles.map((file) => (
+                          <li key={file.filePath}>
+                            <strong>{file.fileName}</strong>
+                            <span>{formatBytes(file.size)}</span>
+                            <code>{file.filePath}</code>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
         </Col>
@@ -433,7 +499,7 @@ function VaultSettingsPage() {
           </Card>
         </Col>
 
-        <Col lg={5}>
+        <Col lg={6}>
           <Card className="vault-settings-card h-100">
             <Card.Body>
               <div className="vault-settings-card__header">
@@ -463,7 +529,7 @@ function VaultSettingsPage() {
           </Card>
         </Col>
 
-        <Col lg={5}>
+        <Col lg={6}>
           <Card className="vault-settings-card h-100">
             <Card.Body>
               <div className="vault-settings-card__header">
@@ -480,72 +546,6 @@ function VaultSettingsPage() {
                 <div><span>Archive folder</span><StatusBadge status={summary.health.archiveFolder} /></div>
                 <div><span>Database connection</span><StatusBadge status={summary.health.databaseConnection} /></div>
               </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={7}>
-          <Card className="vault-settings-card h-100">
-            <Card.Body>
-              <div className="vault-settings-card__header">
-                <div>
-                  <p className="vault-settings-eyebrow">Integrity / File Checks</p>
-                  <h2>File integrity checks</h2>
-                  <p className="vault-settings-muted">These checks only report issues. Nothing is deleted or modified.</p>
-                </div>
-                <Button variant="outline-primary" onClick={loadVaultHealth}>Refresh checks</Button>
-              </div>
-              <Row className="g-3">
-                <Col md={6}>
-                  <div className="vault-settings-integrity-box">
-                    <div>
-                      <span>Missing files</span>
-                      <strong>{summary.integrity.missingFilesCount}</strong>
-                    </div>
-                    <p>Media records whose archived file cannot be found on disk.</p>
-                    {summary.integrity.missingFiles.length > 0 && (
-                      <Button variant="link" className="p-0" onClick={() => setShowMissingDetails((current) => !current)}>
-                        {showMissingDetails ? 'Hide details' : 'View details'}
-                      </Button>
-                    )}
-                    {showMissingDetails && (
-                      <ul className="vault-settings-file-list">
-                        {summary.integrity.missingFiles.map((file) => (
-                          <li key={`${file.id}-${file.filePath}`}>
-                            <strong>{file.title || file.fileName}</strong>
-                            <code>{file.filePath}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </Col>
-                <Col md={6}>
-                  <div className="vault-settings-integrity-box">
-                    <div>
-                      <span>Orphan files</span>
-                      <strong>{summary.integrity.orphanFilesCount}</strong>
-                    </div>
-                    <p>Files in the archive folder that are not referenced by media records.</p>
-                    {summary.integrity.orphanFiles.length > 0 && (
-                      <Button variant="link" className="p-0" onClick={() => setShowOrphanDetails((current) => !current)}>
-                        {showOrphanDetails ? 'Hide details' : 'View details'}
-                      </Button>
-                    )}
-                    {showOrphanDetails && (
-                      <ul className="vault-settings-file-list">
-                        {summary.integrity.orphanFiles.map((file) => (
-                          <li key={file.filePath}>
-                            <strong>{file.fileName}</strong>
-                            <span>{formatBytes(file.size)}</span>
-                            <code>{file.filePath}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </Col>
-              </Row>
             </Card.Body>
           </Card>
         </Col>
