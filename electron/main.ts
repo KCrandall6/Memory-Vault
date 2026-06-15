@@ -740,6 +740,7 @@ function setupIpcHandlers() {
       const updated = await dbOperations.updateMediaWithRelations(payload.id, {
         title: payload.title,
         description: payload.description,
+        notes: payload.notes || null,
         capture_date: payload.captureDate || null,
         location: payload.location || null,
         collection: payload.collection || null,
@@ -794,6 +795,7 @@ function setupIpcHandlers() {
         thumbnail_path: string | null;
         title: string;
         description: string;
+        notes: string | null;
         media_type_id: number;
         source_type_id: number | null;
         capture_date: string | null;
@@ -805,6 +807,7 @@ function setupIpcHandlers() {
         thumbnail_path: null,
         title: data.metadata.title,
         description: data.metadata.description,
+        notes: data.metadata.notes || null,
         media_type_id: parseInt(data.metadata.mediaTypeId),
         source_type_id: data.metadata.sourceTypeId ? parseInt(data.metadata.sourceTypeId) : null,
         capture_date: data.metadata.captureDate || null,

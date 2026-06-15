@@ -185,6 +185,7 @@ const UploadPage = () => {
         metadata: {
           title: metadata.title,
           description: metadata.description,
+          notes: metadata.notes,
           mediaTypeId: metadata.mediaTypeId,
           captureDate: metadata.captureDate,
           location: metadata.location,
@@ -224,6 +225,7 @@ const UploadPage = () => {
               nextDrafts[nextKey] = {
                 title: existingNextDraft?.title ?? nextFile.name.split('.')[0],
                 description: existingNextDraft?.description ?? '',
+                notes: existingNextDraft?.notes ?? '',
                 captureDate: carryOverOptions.captureDate
                   ? metadata.captureDate
                   : existingNextDraft?.captureDate ?? '',

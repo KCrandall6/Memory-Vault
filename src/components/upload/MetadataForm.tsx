@@ -29,6 +29,7 @@ export interface MetadataDraft {
   description: string;
   captureDate: string;
   location: string;
+  notes: string;
   mediaTypeId: string;
   collectionId: string;
   tags: Tag[];
@@ -87,6 +88,7 @@ const MetadataForm = ({
     description: '',
     captureDate: '',
     location: '',
+    notes: '',
     mediaTypeId: '',
     collectionId: '',
     collectionSearchTerm: '',
@@ -126,6 +128,7 @@ const MetadataForm = ({
       description: nextFormData.description,
       captureDate: nextFormData.captureDate,
       location: nextFormData.location,
+      notes: nextFormData.notes,
       mediaTypeId: nextFormData.mediaTypeId,
       collectionId: nextFormData.collectionId,
       tags: nextSelectedTags,
@@ -191,6 +194,7 @@ const MetadataForm = ({
       description: draft?.description ?? '',
       captureDate: draft?.captureDate ?? '',
       location: draft?.location ?? '',
+      notes: draft?.notes ?? '',
       mediaTypeId: inferredMediaType,
       collectionId: draft?.collectionId ?? '',
       collectionSearchTerm: '',
@@ -458,6 +462,20 @@ const MetadataForm = ({
             </Form.Group>
           </Col>
         </Row>
+
+        <Form.Group className="mb-3">
+          <Form.Label>Memory Notes</Form.Label>
+          <Form.Text className="text-muted d-block mb-2">
+            Add anything you want to remember about this memory.
+          </Form.Text>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            name="notes"
+            value={formData.notes}
+            onChange={handleInputChange}
+          />
+        </Form.Group>
 
         <Row>
           <Col>

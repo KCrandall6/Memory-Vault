@@ -88,6 +88,16 @@ try {
   db = null;
 }
 
+
+function ensureMediaNotesColumn() {
+  const columns = db.prepare('PRAGMA table_info(Media)').all();
+  const hasNotesColumn = columns.some((column) => column.name === 'notes');
+  if (!hasNotesColumn) {
+    db.prepare('ALTER TABLE Media ADD COLUMN notes TEXT').run();
+    console.log('Added notes column to Media table');
+  }
+}
+
 function migrateSystemCollectionsToUngrouped() {
   const placeholders = systemCollectionPlaceholders();
   const systemCollections = db.prepare(`
@@ -111,6 +121,8 @@ function initializeDefaultValues() {
   try {
     if (!db) return;
     
+    ensureMediaNotesColumn();
+
     // Check and populate MediaTypes
     const mediaTypesCount = db.prepare('SELECT COUNT(*) as count FROM MediaTypes').get().count;
     if (mediaTypesCount === 0) {
@@ -176,9 +188,9 @@ function addMedia(mediaData) {
     
     const stmt = db.prepare(`
       INSERT INTO Media (
-        file_name, file_path, thumbnail_path, title, description,
+        file_name, file_path, thumbnail_path, title, description, notes,
         media_type_id, source_type_id, capture_date, location, collection_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     const info = stmt.run(
@@ -187,6 +199,7 @@ function addMedia(mediaData) {
       mediaData.thumbnail_path,
       mediaData.title,
       mediaData.description,
+      mediaData.notes || null,
       mediaData.media_type_id,
       mediaData.source_type_id,
       mediaData.capture_date,
@@ -211,6 +224,8 @@ function buildRelevanceClause({ searchTerm, titleTerm, locationTerm, peopleText,
     clauses.push(`CASE WHEN LOWER(m.title) LIKE ? THEN 5 ELSE 0 END`);
     params.push(like);
     clauses.push(`CASE WHEN LOWER(m.description) LIKE ? THEN 3 ELSE 0 END`);
+    params.push(like);
+    clauses.push(`CASE WHEN LOWER(m.notes) LIKE ? THEN 3 ELSE 0 END`);
     params.push(like);
     clauses.push(`CASE WHEN LOWER(m.location) LIKE ? THEN 2 ELSE 0 END`);
     params.push(like);
@@ -302,6 +317,7 @@ function searchMedia(criteria = {}) {
         m.id,
         m.title,
         m.description,
+        m.notes,
         m.capture_date,
         m.created_at,
         m.location,
@@ -329,8 +345,8 @@ function searchMedia(criteria = {}) {
     if (searchTerm) {
       const like = `%${searchTerm}%`;
       query +=
-        ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.location) LIKE ? OR EXISTS (SELECT 1 FROM MediaPeople mp2 JOIN People p2 ON p2.id = mp2.person_id WHERE mp2.media_id = m.id AND LOWER(p2.name) LIKE ?))`;
-      params.push(like, like, like, like);
+        ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.notes) LIKE ? OR LOWER(m.location) LIKE ? OR EXISTS (SELECT 1 FROM MediaPeople mp2 JOIN People p2 ON p2.id = mp2.person_id WHERE mp2.media_id = m.id AND LOWER(p2.name) LIKE ?))`;
+      params.push(like, like, like, like, like);
     }
 
     if (titleTerm) {
@@ -506,6 +522,7 @@ function getMediaDetails(id) {
         m.id,
         m.title,
         m.description,
+        m.notes,
         m.capture_date,
         m.created_at,
         m.location,
@@ -579,6 +596,7 @@ function updateMediaWithRelations(id, mediaData) {
       UPDATE Media SET
         title = ?,
         description = ?,
+        notes = ?,
         capture_date = ?,
         location = ?,
         collection_id = ?,
@@ -589,6 +607,7 @@ function updateMediaWithRelations(id, mediaData) {
     stmt.run(
       mediaData.title,
       mediaData.description,
+      mediaData.notes || null,
       mediaData.capture_date || null,
       mediaData.location || null,
       collectionId,
@@ -1150,6 +1169,7 @@ function updateMedia(id, mediaData) {
       UPDATE Media SET
         title = ?,
         description = ?,
+        notes = ?,
         media_type_id = ?,
         source_type_id = ?,
         capture_date = ?,
@@ -1161,6 +1181,7 @@ function updateMedia(id, mediaData) {
     const info = stmt.run(
       mediaData.title,
       mediaData.description,
+      mediaData.notes || null,
       mediaData.media_type_id,
       mediaData.source_type_id,
       mediaData.capture_date,

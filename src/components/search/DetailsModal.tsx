@@ -9,6 +9,7 @@ export type DetailedMedia = {
   id: string;
   title: string;
   description?: string;
+  notes?: string;
   captureDate?: string;
   uploadDate?: string;
   location?: string;
@@ -76,6 +77,7 @@ const DetailsModal = ({
       people: details.people,
       mediaType: details.mediaType,
       mediaTypeId: details.mediaTypeId,
+      notes: details.notes,
     };
     onSaveDetails(updated);
     setEditing(false);
@@ -186,6 +188,18 @@ const DetailsModal = ({
                   <div className="mb-3">
                     <div className="fw-semibold">Description</div>
                     <div className="text-muted">{media.description || '—'}</div>
+                  </div>
+
+
+                  <div className="mb-3">
+                    <div className="fw-semibold">Memory Notes</div>
+                    {media.notes ? (
+                      <div className="bg-light border rounded p-3 mt-1" style={{ whiteSpace: 'pre-wrap' }}>
+                        {media.notes}
+                      </div>
+                    ) : (
+                      <div className="text-muted">No notes yet.</div>
+                    )}
                   </div>
 
                   <Row className="g-3">
