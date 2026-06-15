@@ -40,6 +40,15 @@ export interface MetadataSubmitPayload extends MetadataDraft {
   file: File;
 }
 
+export interface CarryOverOptions {
+  collection: boolean;
+  captureDate: boolean;
+  location: boolean;
+  mediaTypeId: boolean;
+  people: boolean;
+  tags: boolean;
+}
+
 interface MetadataFormProps {
   file: File | null;
   onSave: (metadata: MetadataSubmitPayload) => void;
@@ -49,6 +58,12 @@ interface MetadataFormProps {
   existingPeople?: Person[];
   draft?: MetadataDraft;
   onDraftChange?: (draft: MetadataDraft) => void;
+  carryOverOptions?: CarryOverOptions;
+  onCarryOverOptionsChange?: (options: CarryOverOptions) => void;
+  showCarryOverOptions?: boolean;
+  batchPosition?: number;
+  batchTotal?: number;
+  submitLabel?: string;
 }
 
 const MetadataForm = ({
@@ -59,7 +74,13 @@ const MetadataForm = ({
   existingTags = [],
   existingPeople = [],
   draft,
-  onDraftChange
+  onDraftChange,
+  carryOverOptions,
+  onCarryOverOptionsChange,
+  showCarryOverOptions = false,
+  batchPosition,
+  batchTotal,
+  submitLabel = 'Save Media'
 }: MetadataFormProps) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -76,6 +97,15 @@ const MetadataForm = ({
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [selectedPeople, setSelectedPeople] = useState<Person[]>([]);
   const [filteredCollections, setFilteredCollections] = useState<Collection[]>([]);
+
+  const carryOverFields: Array<{ key: keyof CarryOverOptions; label: string }> = [
+    { key: 'collection', label: 'Collection' },
+    { key: 'captureDate', label: 'Date' },
+    { key: 'location', label: 'Location' },
+    { key: 'mediaTypeId', label: 'Source type' },
+    { key: 'people', label: 'People' },
+    { key: 'tags', label: 'Tags' }
+  ];
 
   // New state for collection modal
   const [showNewCollectionModal, setShowNewCollectionModal] = useState(false);
@@ -339,6 +369,15 @@ const MetadataForm = ({
     emitDraftChange(formData, selectedTags, nextPeople);
   };
 
+  const handleCarryOverToggle = (field: keyof CarryOverOptions) => {
+    if (!carryOverOptions || !onCarryOverOptionsChange) return;
+
+    onCarryOverOptionsChange({
+      ...carryOverOptions,
+      [field]: !carryOverOptions[field]
+    });
+  };
+
   // Handle form submission
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -367,6 +406,11 @@ const MetadataForm = ({
   return (
     <>
       <Form onSubmit={handleSubmit}>
+        {batchPosition && batchTotal && batchTotal > 1 && (
+          <div className="batch-progress mb-3">
+            Memory {batchPosition} of {batchTotal}
+          </div>
+        )}
         <Form.Group className="mb-3">
           <Form.Label>Title <span className="text-danger">*</span></Form.Label>
           <Form.Control
@@ -617,13 +661,35 @@ const MetadataForm = ({
           )}
         </Form.Group>
 
+        {showCarryOverOptions && carryOverOptions && (
+          <div className="carry-over-card mb-3">
+            <h6 className="mb-1">Use these details for the next memory</h6>
+            <p className="text-muted small mb-3">
+              Save time when several memories share the same details.
+            </p>
+            <Row className="g-2">
+              {carryOverFields.map(({ key, label }) => (
+                <Col xs={6} key={key}>
+                  <Form.Check
+                    type="checkbox"
+                    id={`carry-over-${key}`}
+                    label={label}
+                    checked={carryOverOptions[key]}
+                    onChange={() => handleCarryOverToggle(key)}
+                  />
+                </Col>
+              ))}
+            </Row>
+          </div>
+        )}
+
         <Button
           variant="success"
           type="submit"
           className="w-100"
           style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
         >
-          Save Media
+          {submitLabel}
         </Button>
       </Form>
 
