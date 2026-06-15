@@ -645,7 +645,7 @@ const MetadataForm = ({
                   key={tag.id}
                   bg="secondary"
                   className="me-1 mb-1 p-2"
-                  style={{ backgroundColor: '#FFB800', color: '#1E3A5F' }}
+                  style={{ backgroundColor: '#FFB800', color: '#ffffff' }}
                 >
                   {tag.name}
                   <span
