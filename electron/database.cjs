@@ -88,6 +88,50 @@ try {
   db = null;
 }
 
+
+function ensureMediaNotesColumn() {
+  const columns = db.prepare('PRAGMA table_info(Media)').all();
+  const hasNotesColumn = columns.some((column) => column.name === 'notes');
+  if (!hasNotesColumn) {
+    db.prepare('ALTER TABLE Media ADD COLUMN notes TEXT').run();
+    console.log('Added notes column to Media table');
+  }
+}
+
+
+function ensureCommentsAuthorNameColumn() {
+  const columns = db.prepare('PRAGMA table_info(Comments)').all();
+  const hasAuthorNameColumn = columns.some((column) => column.name === 'author_name');
+  if (!hasAuthorNameColumn) {
+    db.prepare('ALTER TABLE Comments ADD COLUMN author_name TEXT').run();
+    console.log('Added author_name column to Comments table');
+  }
+}
+
+function migrateMediaNotesToComments() {
+  const mediaColumns = db.prepare('PRAGMA table_info(Media)').all();
+  const hasNotesColumn = mediaColumns.some((column) => column.name === 'notes');
+  if (!hasNotesColumn) return;
+
+  const result = db.prepare(`
+    INSERT INTO Comments (media_id, author_name, content)
+    SELECT m.id, NULL, TRIM(m.notes)
+    FROM Media m
+    WHERE m.notes IS NOT NULL
+      AND TRIM(m.notes) != ''
+      AND NOT EXISTS (
+        SELECT 1
+        FROM Comments c
+        WHERE c.media_id = m.id
+          AND TRIM(c.content) = TRIM(m.notes)
+      )
+  `).run();
+
+  if (result.changes > 0) {
+    console.log(`Migrated ${result.changes} Media.notes value(s) into Memory Notes`);
+  }
+}
+
 function migrateSystemCollectionsToUngrouped() {
   const placeholders = systemCollectionPlaceholders();
   const systemCollections = db.prepare(`
@@ -111,6 +155,10 @@ function initializeDefaultValues() {
   try {
     if (!db) return;
     
+    ensureMediaNotesColumn();
+    ensureCommentsAuthorNameColumn();
+    migrateMediaNotesToComments();
+
     // Check and populate MediaTypes
     const mediaTypesCount = db.prepare('SELECT COUNT(*) as count FROM MediaTypes').get().count;
     if (mediaTypesCount === 0) {
@@ -176,9 +224,9 @@ function addMedia(mediaData) {
     
     const stmt = db.prepare(`
       INSERT INTO Media (
-        file_name, file_path, thumbnail_path, title, description,
+        file_name, file_path, thumbnail_path, title, description, notes,
         media_type_id, source_type_id, capture_date, location, collection_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     const info = stmt.run(
@@ -187,6 +235,7 @@ function addMedia(mediaData) {
       mediaData.thumbnail_path,
       mediaData.title,
       mediaData.description,
+      mediaData.notes || null,
       mediaData.media_type_id,
       mediaData.source_type_id,
       mediaData.capture_date,
@@ -212,6 +261,8 @@ function buildRelevanceClause({ searchTerm, titleTerm, locationTerm, peopleText,
     params.push(like);
     clauses.push(`CASE WHEN LOWER(m.description) LIKE ? THEN 3 ELSE 0 END`);
     params.push(like);
+    clauses.push(`CASE WHEN EXISTS (SELECT 1 FROM Comments c_notes WHERE c_notes.media_id = m.id AND (LOWER(c_notes.content) LIKE ? OR LOWER(c_notes.author_name) LIKE ?)) THEN 3 ELSE 0 END`);
+    params.push(like, like);
     clauses.push(`CASE WHEN LOWER(m.location) LIKE ? THEN 2 ELSE 0 END`);
     params.push(like);
   }
@@ -329,8 +380,8 @@ function searchMedia(criteria = {}) {
     if (searchTerm) {
       const like = `%${searchTerm}%`;
       query +=
-        ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR LOWER(m.location) LIKE ? OR EXISTS (SELECT 1 FROM MediaPeople mp2 JOIN People p2 ON p2.id = mp2.person_id WHERE mp2.media_id = m.id AND LOWER(p2.name) LIKE ?))`;
-      params.push(like, like, like, like);
+        ` AND (LOWER(m.title) LIKE ? OR LOWER(m.description) LIKE ? OR EXISTS (SELECT 1 FROM Comments c_search WHERE c_search.media_id = m.id AND (LOWER(c_search.content) LIKE ? OR LOWER(c_search.author_name) LIKE ?)) OR LOWER(m.location) LIKE ? OR EXISTS (SELECT 1 FROM MediaPeople mp2 JOIN People p2 ON p2.id = mp2.person_id WHERE mp2.media_id = m.id AND LOWER(p2.name) LIKE ?))`;
+      params.push(like, like, like, like, like, like);
     }
 
     if (titleTerm) {
@@ -436,6 +487,59 @@ function searchMedia(criteria = {}) {
   }
 }
 
+
+function mapMemoryNote(row) {
+  return {
+    id: row.id,
+    media_id: row.media_id,
+    author_name: row.author_name || null,
+    content: row.content,
+    created_at: row.created_at
+  };
+}
+
+function getMemoryNotes(mediaId) {
+  try {
+    if (!db) return [];
+
+    const stmt = db.prepare(`
+      SELECT id, media_id, author_name, content, created_at
+      FROM Comments
+      WHERE media_id = ?
+      ORDER BY datetime(created_at) ASC, id ASC
+    `);
+
+    return stmt.all(mediaId).map(mapMemoryNote);
+  } catch (error) {
+    console.error('Error getting memory notes:', error);
+    return [];
+  }
+}
+
+function addMemoryNote(mediaId, { authorName = '', content = '' } = {}) {
+  try {
+    if (!db) throw new Error('Database not initialized');
+    const trimmedContent = String(content || '').trim();
+    if (!trimmedContent) throw new Error('Note content is required');
+
+    const trimmedAuthor = String(authorName || '').trim();
+    const stmt = db.prepare(`
+      INSERT INTO Comments (media_id, author_name, content)
+      VALUES (?, ?, ?)
+    `);
+    const info = stmt.run(Number(mediaId), trimmedAuthor || null, trimmedContent);
+
+    return mapMemoryNote(db.prepare(`
+      SELECT id, media_id, author_name, content, created_at
+      FROM Comments
+      WHERE id = ?
+    `).get(info.lastInsertRowid));
+  } catch (error) {
+    console.error('Error adding memory note:', error);
+    throw error;
+  }
+}
+
 // Get a single media record by ID
 function getMediaById(id) {
   try {
@@ -529,7 +633,7 @@ function getMediaDetails(id) {
 
     const row = stmt.get(id);
     if (!row) return null;
-    return mapAggregates(row);
+    return { ...mapAggregates(row), memory_notes: getMemoryNotes(id) };
   } catch (error) {
     console.error('Error getting media details:', error);
     return null;
@@ -1150,6 +1254,7 @@ function updateMedia(id, mediaData) {
       UPDATE Media SET
         title = ?,
         description = ?,
+        notes = ?,
         media_type_id = ?,
         source_type_id = ?,
         capture_date = ?,
@@ -1161,6 +1266,7 @@ function updateMedia(id, mediaData) {
     const info = stmt.run(
       mediaData.title,
       mediaData.description,
+      mediaData.notes || null,
       mediaData.media_type_id,
       mediaData.source_type_id,
       mediaData.capture_date,
@@ -1218,6 +1324,8 @@ module.exports = {
   addMedia,
   searchMedia,
   getMediaDetails,
+  getMemoryNotes,
+  addMemoryNote,
   getDashboardSummary,
   getVaultStatistics,
   getCollectionSummaries,

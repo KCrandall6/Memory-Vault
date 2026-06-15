@@ -5,6 +5,7 @@ import FileSelector from '../components/upload/FileSelector';
 import UploadQueue from '../components/upload/UploadQueue';
 import MediaPreview from '../components/upload/MediaPreview';
 import MetadataForm, {
+  CarryOverOptions,
   MetadataDraft,
   MetadataSubmitPayload
 } from '../components/upload/MetadataForm';
@@ -31,6 +32,15 @@ interface Person {
   name: string;
 }
 
+const defaultCarryOverOptions: CarryOverOptions = {
+  collection: true,
+  captureDate: true,
+  location: true,
+  mediaTypeId: true,
+  people: false,
+  tags: false
+};
+
 const UploadPage = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
@@ -39,6 +49,9 @@ const UploadPage = () => {
   const [existingTags, setExistingTags] = useState<Tag[]>([]);
   const [existingPeople, setExistingPeople] = useState<Person[]>([]);
   const [metadataDrafts, setMetadataDrafts] = useState<Record<string, MetadataDraft>>({});
+  const [carryOverOptions, setCarryOverOptions] = useState<CarryOverOptions>(defaultCarryOverOptions);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [savedInBatch, setSavedInBatch] = useState(0);
   const [statusMessage, setStatusMessage] = useState<
     { variant: 'success' | 'danger'; text: string } | null
   >(null);
@@ -140,6 +153,14 @@ const UploadPage = () => {
     console.log('Files selected:', files);
     if (!files || files.length === 0) return;
 
+    if (selectedFiles.length === 0) {
+      setCarryOverOptions(defaultCarryOverOptions);
+      setSavedInBatch(0);
+      setBatchTotal(files.length);
+    } else {
+      setBatchTotal(prev => prev + files.length);
+    }
+
     setSelectedFiles(prev => [...prev, ...files]);
     if (!currentFile && files.length > 0) {
       setCurrentFile(files[0]);
@@ -180,24 +201,61 @@ const UploadPage = () => {
       const result = await window.electronAPI.saveMedia(data);
       
       if (result.success) {
+        const savedFileIndex = selectedFiles.findIndex(f => f === metadata.file);
         // Remove the saved file from the queue
         const newSelectedFiles = selectedFiles.filter(f => f !== metadata.file);
+        const nextFile =
+          savedFileIndex >= 0 && savedFileIndex < selectedFiles.length - 1
+            ? selectedFiles[savedFileIndex + 1]
+            : newSelectedFiles[0] ?? null;
+
         setSelectedFiles(newSelectedFiles);
+        setSavedInBatch(prev => prev + 1);
 
         if (metadata.file) {
-          const key = getFileKey(metadata.file);
+          const savedKey = getFileKey(metadata.file);
           setMetadataDrafts(prev => {
             const nextDrafts = { ...prev };
-            delete nextDrafts[key];
+            delete nextDrafts[savedKey];
+
+            if (nextFile) {
+              const nextKey = getFileKey(nextFile);
+              const existingNextDraft = nextDrafts[nextKey];
+              nextDrafts[nextKey] = {
+                title: existingNextDraft?.title ?? nextFile.name.split('.')[0],
+                description: existingNextDraft?.description ?? '',
+                captureDate: carryOverOptions.captureDate
+                  ? metadata.captureDate
+                  : existingNextDraft?.captureDate ?? '',
+                location: carryOverOptions.location
+                  ? metadata.location
+                  : existingNextDraft?.location ?? '',
+                mediaTypeId: carryOverOptions.mediaTypeId
+                  ? metadata.mediaTypeId
+                  : existingNextDraft?.mediaTypeId ?? '',
+                collectionId: carryOverOptions.collection
+                  ? metadata.collectionId
+                  : existingNextDraft?.collectionId ?? '',
+                tags: carryOverOptions.tags ? metadata.tags : existingNextDraft?.tags ?? [],
+                people: carryOverOptions.people ? metadata.people : existingNextDraft?.people ?? [],
+                collection: carryOverOptions.collection
+                  ? metadata.collection
+                  : existingNextDraft?.collection ?? null
+              };
+            }
+
             return nextDrafts;
           });
         }
 
         // Select the next file or clear
-        if (newSelectedFiles.length > 0) {
-          setCurrentFile(newSelectedFiles[0]);
+        if (nextFile) {
+          setCurrentFile(nextFile);
         } else {
           setCurrentFile(null);
+          setCarryOverOptions(defaultCarryOverOptions);
+          setBatchTotal(0);
+          setSavedInBatch(0);
         }
 
         setStatusMessage({
@@ -226,6 +284,15 @@ const UploadPage = () => {
   };
 
   const currentDraft = currentFile ? metadataDrafts[getFileKey(currentFile)] : undefined;
+  const currentFileIndex = currentFile ? selectedFiles.findIndex(file => file === currentFile) : -1;
+  const hasNextMemoryAfterSave = selectedFiles.length > 1;
+  const isMultiFileBatch = batchTotal > 1;
+  const batchPosition = currentFileIndex >= 0 ? savedInBatch + currentFileIndex + 1 : undefined;
+  const submitLabel = selectedFiles.length === 1
+    ? isMultiFileBatch
+      ? 'Finish Batch'
+      : 'Save Memory'
+    : 'Save & Continue';
   
   return (
     <Container fluid className="py-4">
@@ -301,6 +368,12 @@ const UploadPage = () => {
                     if (!currentFile) return;
                     handleDraftChange(currentFile, draft);
                   }}
+                  carryOverOptions={carryOverOptions}
+                  onCarryOverOptionsChange={setCarryOverOptions}
+                  showCarryOverOptions={hasNextMemoryAfterSave}
+                  batchPosition={batchPosition}
+                  batchTotal={batchTotal}
+                  submitLabel={submitLabel}
                 />
               </Card.Body>
             </Card>

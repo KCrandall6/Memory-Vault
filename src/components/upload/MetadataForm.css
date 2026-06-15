@@ -5,3 +5,25 @@
   .cursor-pointer {
     cursor: pointer;
   }
+
+.batch-progress {
+  background: #eef4fb;
+  border: 1px solid #d8e6f5;
+  border-radius: 0.75rem;
+  color: #1E3A5F;
+  font-weight: 600;
+  padding: 0.65rem 0.85rem;
+  text-align: center;
+}
+
+.carry-over-card {
+  background: #f8fafc;
+  border: 1px solid #d8e6f5;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.carry-over-card h6 {
+  color: #1E3A5F;
+  font-weight: 700;
+}

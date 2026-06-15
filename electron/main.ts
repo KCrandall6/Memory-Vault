@@ -735,6 +735,26 @@ function setupIpcHandlers() {
     }
   });
 
+
+  ipcMain.handle('get-memory-notes', async (_event, mediaId: number) => {
+    try {
+      return await dbOperations.getMemoryNotes(mediaId);
+    } catch (error) {
+      console.error('Error getting memory notes:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('add-memory-note', async (_event, mediaId: number, payload: { authorName?: string; content: string }) => {
+    try {
+      const note = await dbOperations.addMemoryNote(mediaId, payload);
+      return { success: true, note };
+    } catch (error) {
+      console.error('Error adding memory note:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
   ipcMain.handle('update-media-details', async (_event, payload) => {
     try {
       const updated = await dbOperations.updateMediaWithRelations(payload.id, {

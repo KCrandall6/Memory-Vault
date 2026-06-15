@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS Media (
     thumbnail_path TEXT, -- Path for small preview images
     title TEXT,
     description TEXT,
+    notes TEXT,
     media_type_id INTEGER NOT NULL,
     source_type_id INTEGER,
     capture_date TEXT, -- Stored as ISO 8601 format: "YYYY-MM-DD HH:MM:SS"
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS MediaTags (
 CREATE TABLE IF NOT EXISTS Comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     media_id INTEGER,
+    author_name TEXT,
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (media_id) REFERENCES Media(id)

@@ -190,7 +190,6 @@ const EditDetailsModal = ({
               />
             </Form.Group>
 
-
             <Form.Group controlId="mediaType" className="mt-3">
               <Form.Label>Media Type</Form.Label>
               <Form.Select

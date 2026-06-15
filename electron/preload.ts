@@ -59,6 +59,14 @@ type VaultHealthSummary = {
 };
 
 
+type MemoryNote = {
+  id: number;
+  media_id: number;
+  author_name?: string | null;
+  content: string;
+  created_at: string;
+};
+
 type VaultCopyResult = {
   success: boolean;
   destinationPath?: string;
@@ -91,6 +99,8 @@ interface ElectronAPI {
   deleteMedia: (id: number) => Promise<{ success: boolean; error?: string }>;
   getMediaDetails: (id: number) => Promise<any | null>;
   updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
+  getMemoryNotes: (mediaId: number) => Promise<MemoryNote[]>;
+  addMemoryNote: (mediaId: number, payload: { authorName?: string; content: string }) => Promise<{ success: boolean; note?: MemoryNote; error?: string }>;
   downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>
     Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
   getVaultSettings: () => Promise<VaultPaths>;
@@ -126,6 +136,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteMedia: (id) => ipcRenderer.invoke('delete-media', id),
   getMediaDetails: (id) => ipcRenderer.invoke('get-media-details', id),
   updateMediaDetails: (payload) => ipcRenderer.invoke('update-media-details', payload),
+  getMemoryNotes: (mediaId) => ipcRenderer.invoke('get-memory-notes', mediaId),
+  addMemoryNote: (mediaId, payload) => ipcRenderer.invoke('add-memory-note', mediaId, payload),
   downloadMediaFile: (payload) => ipcRenderer.invoke('download-media-file', payload),
   getVaultSettings: () => ipcRenderer.invoke('get-vault-settings'),
   openVaultFolder: () => ipcRenderer.invoke('open-vault-folder'),
