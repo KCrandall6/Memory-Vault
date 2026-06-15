@@ -131,9 +131,7 @@ const DetailsModal = ({
     return new Intl.DateTimeFormat(undefined, {
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
+      year: 'numeric'
     }).format(parsed);
   };
 
