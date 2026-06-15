@@ -20,3 +20,13 @@
   border-radius: 8px;
   object-fit: contain;
 }
+
+.app-navbar .dropdown-menu {
+  max-width: calc(100vw - 2rem);
+  overflow-wrap: anywhere;
+}
+
+.app-navbar .dropdown-item {
+  max-width: 100%;
+  white-space: nowrap;
+}
