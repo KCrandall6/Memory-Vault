@@ -36,6 +36,20 @@ const mediaTypeIcon: Record<string, string> = {
 const mapReference = (items: any[] = []): ReferenceOption[] =>
   items.map((item) => ({ id: String(item.id), name: item.name }));
 
+
+const normalizeMemoryNotes = (row: any) => {
+  const notes = row.memory_notes || row.memoryNotes || [];
+  return Array.isArray(notes)
+    ? notes.map((note) => ({
+        id: Number(note.id),
+        media_id: Number(note.media_id),
+        author_name: typeof note.author_name === 'string' ? note.author_name : null,
+        content: String(note.content || ''),
+        created_at: String(note.created_at || '')
+      }))
+    : [];
+};
+
 const normalizeResult = (row: any): SearchResult => ({
   id: String(row.id),
   title: row.title || row.file_name || 'Untitled memory',
@@ -69,6 +83,7 @@ const normalizeDetails = (row: any): DetailedMedia => ({
   thumbnail: row.thumbnail_url || row.thumbnail || undefined,
   filePath: row.file_path || row.filePath || undefined,
   fileUrl: row.file_url || row.fileUrl || undefined,
+  memoryNotes: normalizeMemoryNotes(row),
 });
 
 const SearchPage = () => {
