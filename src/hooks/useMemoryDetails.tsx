@@ -56,7 +56,15 @@ export const normalizeDetailedMedia = (row: Record<string, unknown>): DetailedMe
     id: String(row.id),
     title: String(row.title || row.file_name || 'Untitled memory'),
     description: String(row.description || ''),
-    notes: String(row.notes || ''),
+    memoryNotes: Array.isArray(row.memory_notes)
+      ? row.memory_notes.map((note) => ({
+          id: Number(note.id),
+          media_id: Number(note.media_id),
+          author_name: typeof note.author_name === 'string' ? note.author_name : null,
+          content: String(note.content || ''),
+          created_at: String(note.created_at || '')
+        }))
+      : [],
     captureDate: String(row.capture_date || row.captureDate || ''),
     uploadDate: row.created_at ? String(row.created_at).split('T')[0] : String(row.uploadDate || ''),
     location: String(row.location || ''),
@@ -120,7 +128,6 @@ export const useMemoryDetails = ({ onSaved, onDeleted }: UseMemoryDetailsOptions
         id: Number(updated.id),
         title: updated.title,
         description: updated.description,
-        notes: updated.notes || '',
         captureDate: updated.captureDate,
         location: updated.location,
         collection: updated.collection,

@@ -55,6 +55,14 @@ type VaultHealthSummary = {
 };
 
 
+type MemoryNote = {
+  id: number;
+  media_id: number;
+  author_name?: string | null;
+  content: string;
+  created_at: string;
+};
+
 type VaultCopyResult = {
   success: boolean;
   destinationPath?: string;
@@ -87,6 +95,8 @@ interface ElectronAPI {
   deleteMedia: (id: number) => Promise<{ success: boolean; error?: string }>;
   getMediaDetails: (id: number) => Promise<any | null>;
   updateMediaDetails: (payload: any) => Promise<{ success: boolean; media?: any; error?: string }>;
+  getMemoryNotes: (mediaId: number) => Promise<MemoryNote[]>;
+  addMemoryNote: (mediaId: number, payload: { authorName?: string; content: string }) => Promise<{ success: boolean; note?: MemoryNote; error?: string }>;
   downloadMediaFile: (payload: { filePath: string; defaultFileName?: string }) =>
     Promise<{ success: boolean } | { success: boolean; canceled: boolean }>;
   getVaultSettings: () => Promise<VaultPaths>;

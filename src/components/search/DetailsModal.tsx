@@ -1,15 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Col, Modal, Row } from 'react-bootstrap';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Badge, Button, Col, Form, Modal, Row } from 'react-bootstrap';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { isRendererSafePreviewUrl } from '../recent/recentMedia';
 import EditDetailsModal, { EditableDetails } from './EditDetailsModal';
 import { ReferenceOption } from './SearchBar';
 
+export type MemoryNote = {
+  id: number;
+  media_id: number;
+  author_name?: string | null;
+  content: string;
+  created_at: string;
+};
+
 export type DetailedMedia = {
   id: string;
   title: string;
   description?: string;
-  notes?: string;
   captureDate?: string;
   uploadDate?: string;
   location?: string;
@@ -21,6 +28,7 @@ export type DetailedMedia = {
   thumbnail?: string;
   filePath?: string;
   fileUrl?: string;
+  memoryNotes?: MemoryNote[];
 };
 
 type DetailsModalProps = {
@@ -58,6 +66,13 @@ const DetailsModal = ({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [showAddNote, setShowAddNote] = useState(false);
+  const [noteAuthorName, setNoteAuthorName] = useState('');
+  const [lastAuthorName, setLastAuthorName] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [memoryNotes, setMemoryNotes] = useState<MemoryNote[]>([]);
 
   const previewSource = useMemo(() => {
     if (!media || previewFailed) return undefined;
@@ -77,7 +92,6 @@ const DetailsModal = ({
       people: details.people,
       mediaType: details.mediaType,
       mediaTypeId: details.mediaTypeId,
-      notes: details.notes,
     };
     onSaveDetails(updated);
     setEditing(false);
@@ -109,6 +123,59 @@ const DetailsModal = ({
     }
   };
 
+
+  const formatNoteDate = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(parsed);
+  };
+
+  const openAddNoteModal = () => {
+    setNoteAuthorName(lastAuthorName);
+    setNoteContent('');
+    setNoteError(null);
+    setShowAddNote(true);
+  };
+
+  const handleSaveNote = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!media || !noteContent.trim()) return;
+
+    setSavingNote(true);
+    setNoteError(null);
+    try {
+      const response = await window.electronAPI.addMemoryNote(Number(media.id), {
+        authorName: noteAuthorName,
+        content: noteContent
+      });
+
+      if (!response.success || !response.note) {
+        throw new Error(response.error || 'The note could not be saved.');
+      }
+
+      const savedNote = response.note;
+
+      if (noteAuthorName.trim()) {
+        setLastAuthorName(noteAuthorName.trim());
+      }
+      setMemoryNotes((prev) => [...prev, savedNote]);
+      setShowAddNote(false);
+      setNoteContent('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The note could not be saved.';
+      setNoteError(message);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const icon = media ? mediaTypeIcon[media.mediaType] ?? 'bi-file-earmark' : 'bi-file-earmark';
 
   const mediaTypeLabel = media?.mediaType
@@ -117,7 +184,11 @@ const DetailsModal = ({
 
   useEffect(() => {
     setPreviewFailed(false);
-  }, [media?.id, media?.thumbnail, media?.fileUrl]);
+    setMemoryNotes(media?.memoryNotes || []);
+    setShowAddNote(false);
+    setNoteContent('');
+    setNoteError(null);
+  }, [media?.id, media?.thumbnail, media?.fileUrl, media?.memoryNotes]);
 
   return (
     <>
@@ -190,18 +261,6 @@ const DetailsModal = ({
                     <div className="text-muted">{media.description || '—'}</div>
                   </div>
 
-
-                  <div className="mb-3">
-                    <div className="fw-semibold">Memory Notes</div>
-                    {media.notes ? (
-                      <div className="bg-light border rounded p-3 mt-1" style={{ whiteSpace: 'pre-wrap' }}>
-                        {media.notes}
-                      </div>
-                    ) : (
-                      <div className="text-muted">No notes yet.</div>
-                    )}
-                  </div>
-
                   <Row className="g-3">
                     <Col md={6}>
                       <div className="fw-semibold">Date</div>
@@ -247,6 +306,30 @@ const DetailsModal = ({
                     </div>
                   </div>
 
+
+                  <div className="mt-3">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div className="fw-semibold">Memory Notes</div>
+                      <Button variant="outline-secondary" size="sm" onClick={openAddNoteModal}>
+                        Add Note
+                      </Button>
+                    </div>
+                    {memoryNotes.length > 0 ? (
+                      <div className="d-flex flex-column gap-2 mt-2">
+                        {memoryNotes.map((note) => (
+                          <div key={note.id} className="bg-light border rounded p-3">
+                            <div className="text-muted small mb-1">
+                              {note.author_name ? `${note.author_name} · ` : ''}{formatNoteDate(note.created_at)}
+                            </div>
+                            <div style={{ whiteSpace: 'pre-wrap' }}>{note.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-muted mt-2">No notes yet.</div>
+                    )}
+                  </div>
+
                   {onDeleteDetails && (
                     <div className="mt-auto pt-4 border-top d-flex justify-content-end">
                       <Button variant="outline-danger" size="sm" onClick={() => setConfirmDelete(true)}>
@@ -284,6 +367,50 @@ const DetailsModal = ({
             Close
           </Button>
         </Modal.Body>
+      </Modal>
+
+
+      <Modal show={showAddNote} onHide={() => setShowAddNote(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Add Memory Note</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSaveNote}>
+          <Modal.Body>
+            <Form.Group controlId="memoryNoteAuthor">
+              <Form.Label>Your name</Form.Label>
+              <Form.Control
+                type="text"
+                value={noteAuthorName}
+                onChange={(event) => setNoteAuthorName(event.target.value)}
+                placeholder="Optional"
+              />
+            </Form.Group>
+            <Form.Group controlId="memoryNoteContent" className="mt-3">
+              <Form.Label>Note</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                value={noteContent}
+                onChange={(event) => setNoteContent(event.target.value)}
+                required
+              />
+            </Form.Group>
+            {noteError && <div className="text-danger small mt-2">{noteError}</div>}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowAddNote(false)} disabled={savingNote}>
+              Cancel
+            </Button>
+            <Button
+              variant="success"
+              type="submit"
+              disabled={savingNote || !noteContent.trim()}
+              style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
+            >
+              {savingNote ? 'Saving…' : 'Save Note'}
+            </Button>
+          </Modal.Footer>
+        </Form>
       </Modal>
 
       {media && (

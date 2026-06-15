@@ -5,7 +5,7 @@ import { ReferenceOption } from './SearchBar';
 
 export type EditableDetails = Pick<
   DetailedMedia,
-  'title' | 'description' | 'notes' | 'captureDate' | 'location' | 'collection' | 'tags' | 'people' | 'mediaType' | 'mediaTypeId'
+  'title' | 'description' | 'captureDate' | 'location' | 'collection' | 'tags' | 'people' | 'mediaType' | 'mediaTypeId'
 >;
 
 type EditDetailsModalProps = {
@@ -32,7 +32,6 @@ const EditDetailsModal = ({
   const [formState, setFormState] = useState<EditableDetails>({
     title: media.title,
     description: media.description || '',
-    notes: media.notes || '',
     captureDate: media.captureDate || '',
     location: media.location || '',
     collection: media.collection || '',
@@ -46,7 +45,6 @@ const EditDetailsModal = ({
     setFormState({
       title: media.title,
       description: media.description || '',
-      notes: media.notes || '',
       captureDate: media.captureDate || '',
       location: media.location || '',
       collection: media.collection || '',
@@ -189,20 +187,6 @@ const EditDetailsModal = ({
                 rows={3}
                 value={formState.description || ''}
                 onChange={(e) => handleChange('description', e.target.value)}
-              />
-            </Form.Group>
-
-
-            <Form.Group controlId="notes" className="mt-3">
-              <Form.Label>Memory Notes</Form.Label>
-              <Form.Text className="text-muted d-block mb-2">
-                Add anything you want to remember about this memory.
-              </Form.Text>
-              <Form.Control
-                as="textarea"
-                rows={4}
-                value={formState.notes || ''}
-                onChange={(e) => handleChange('notes', e.target.value)}
               />
             </Form.Group>
 
