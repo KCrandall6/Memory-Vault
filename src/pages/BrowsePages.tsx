@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Container, Form, Modal, Spinner } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import RecentMediaCard from '../components/recent/RecentMediaCard';
 import { mediaTypeIcon, normalizeRecentMedia, RecentMediaItem } from '../components/recent/recentMedia';
@@ -32,28 +33,28 @@ const configs = {
     eyebrow: 'Browse archive',
     title: 'Collections',
     helper: 'Explore your vault by album-like groups and curated family collections.',
-    empty: 'No collections yet. Create or select collections while uploading memories.',
+    empty: 'No collections yet. Collections help group memories, like Grandma’s Photos or Lake Powell Trip. Add one while uploading or editing a memory.',
     icon: 'bi-collection',
   },
   people: {
     eyebrow: 'Browse archive',
     title: 'People',
     helper: 'Explore memories by the people tagged in your vault.',
-    empty: 'No people have been tagged yet. Add people while uploading or editing memories.',
+    empty: 'No people added yet. Add names while uploading or editing a memory so you can find family members later.',
     icon: 'bi-person-heart',
   },
   tags: {
     eyebrow: 'Browse archive',
     title: 'Tags',
     helper: 'Scan your most-used tags and jump into matching memories.',
-    empty: 'No tags have been added yet. Add tags while uploading or editing memories.',
+    empty: 'No tags added yet. Tags are simple labels like Christmas, vacation, wedding, or school.',
     icon: 'bi-tags',
   },
   dates: {
     eyebrow: 'Timeline',
     title: 'Dates',
     helper: 'Explore dated memories by year, sorted chronologically inside each year.',
-    empty: 'No memories have capture dates yet. Add dates while uploading or editing memories.',
+    empty: 'No dates added yet. Add a memory date while uploading or editing so you can browse your family timeline.',
     icon: 'bi-calendar3',
   },
 } satisfies Record<BrowseKind, { eyebrow: string; title: string; helper: string; empty: string; icon: string }>;
@@ -346,6 +347,7 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
               <div className="home-empty-state__icon"><i className={`bi ${config.icon}`} aria-hidden="true" /></div>
               <h3>Nothing to browse yet.</h3>
               <p>{config.empty}</p>
+              <Button as={Link} to="/upload" variant="warning">Upload Memories</Button>
             </Card.Body>
           </Card>
         ) : kind === 'tags' ? (
@@ -413,7 +415,7 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
           <Card className="browse-selection-empty border-0">
             <Card.Body>
               <i className={`bi ${config.icon}`} aria-hidden="true" />
-              <p>No memories found for {selected.name}.</p>
+              <p>No memories found for {selected.name}. Try adding or editing details on a memory so it appears here.</p>
             </Card.Body>
           </Card>
         ) : (

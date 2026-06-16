@@ -476,3 +476,59 @@
   max-width: none;
   margin-top: 0.35rem;
 }
+
+.home-guide-card,
+.home-tips-card {
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgba(30, 58, 95, 0.08);
+}
+
+.home-guide-card .card-body,
+.home-tips-card .card-body {
+  padding: clamp(1.5rem, 3vw, 2rem);
+}
+
+.home-guide-step {
+  height: 100%;
+  padding: 1rem;
+  border: 1px solid #e6edf5;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.home-guide-step span {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffb800;
+  color: #173456;
+  font-weight: 800;
+}
+
+.home-guide-step h3,
+.home-tips-card h2 {
+  color: #1e3a5f;
+  font-weight: 800;
+}
+
+.home-guide-step h3 {
+  font-size: 1.05rem;
+}
+
+.home-guide-step p,
+.home-tips-card li {
+  color: #64748b;
+}
+
+.home-tips-card ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+}

@@ -80,7 +80,7 @@ const MetadataForm = ({
   showCarryOverOptions = false,
   batchPosition,
   batchTotal,
-  submitLabel = 'Save Media'
+  submitLabel = 'Save Memory'
 }: MetadataFormProps) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -102,7 +102,7 @@ const MetadataForm = ({
     { key: 'collection', label: 'Collection' },
     { key: 'captureDate', label: 'Date' },
     { key: 'location', label: 'Location' },
-    { key: 'mediaTypeId', label: 'Source type' },
+    { key: 'mediaTypeId', label: 'File type' },
     { key: 'people', label: 'People' },
     { key: 'tags', label: 'Tags' }
   ];
@@ -424,6 +424,7 @@ const MetadataForm = ({
 
         <Form.Group className="mb-3">
           <Form.Label>Description <span className="text-danger">*</span></Form.Label>
+          <div className="text-muted small mb-2">A short summary of what this memory is.</div>
           <Form.Control
             as="textarea"
             rows={3}
@@ -462,7 +463,7 @@ const MetadataForm = ({
         <Row>
           <Col>
             <Form.Group className="mb-3">
-              <Form.Label>Media Type <span className="text-danger">*</span></Form.Label>
+              <Form.Label>File Type <span className="text-danger">*</span></Form.Label>
               <Form.Select
                 name="mediaTypeId"
                 value={formData.mediaTypeId}
@@ -510,7 +511,7 @@ const MetadataForm = ({
               <InputGroup>
                 <Form.Control
                   type="text"
-                  placeholder="Search collections or type to create new..."
+                  placeholder="Search collections or type to create a new one..."
                   name="collectionSearchTerm"
                   value={formData.collectionSearchTerm}
                   onChange={handleInputChange}
@@ -574,7 +575,7 @@ const MetadataForm = ({
           <InputGroup>
             <Form.Control
               type="text"
-              placeholder="Add person..."
+              placeholder="Add a family member name..."
               name="newPerson"
               value={formData.newPerson}
               onChange={handleInputChange}
@@ -620,7 +621,7 @@ const MetadataForm = ({
           <InputGroup>
             <Form.Control
               type="text"
-              placeholder="Add tag..."
+              placeholder="Add a tag like Christmas or school..."
               name="newTag"
               value={formData.newTag}
               onChange={handleInputChange}
@@ -716,7 +717,7 @@ const MetadataForm = ({
               rows={3}
               value={newCollectionDescription}
               onChange={(e) => setNewCollectionDescription(e.target.value)}
-              placeholder="Brief description of this collection..."
+              placeholder="A short summary of this collection..."
             />
           </Form.Group>
         </Modal.Body>

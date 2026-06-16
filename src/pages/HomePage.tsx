@@ -107,11 +107,11 @@ const HomePage = () => {
             <div className="d-flex flex-wrap gap-3">
               <Link to="/upload" className="btn btn-warning home-hero__primary-btn">
                 <i className="bi bi-cloud-arrow-up me-2" aria-hidden="true" />
-                Upload Media
+                Upload Memories
               </Link>
               <Link to="/search" className="btn btn-outline-light home-hero__secondary-btn">
                 <i className="bi bi-search me-2" aria-hidden="true" />
-                Search Vault
+                Search Memories
               </Link>
             </div>
           </Col>
@@ -123,7 +123,7 @@ const HomePage = () => {
                 </div>
                 <h2>Your memories stay close.</h2>
                 <p>
-                  Files are archived locally and connected to searchable metadata, collections, people, and tags.
+                  Files are archived locally and connected to searchable details, collections, people, and tags.
                 </p>
                 <div className="home-hero__trust-row">
                   <span><i className="bi bi-wifi-off me-1" aria-hidden="true" />Offline ready</span>
@@ -136,6 +136,41 @@ const HomePage = () => {
       </section>
 
       {error && <Alert variant="warning" className="mt-4 mb-0">{error}</Alert>}
+
+      <section className="home-section home-getting-started">
+        <Card className="home-guide-card border-0">
+          <Card.Body>
+            <div className="home-section__heading mb-3">
+              <div>
+                <p className="home-section__eyebrow">New to Memory Vault?</p>
+                <h2>Getting Started</h2>
+              </div>
+              <p className="home-section__hint">Four simple steps for building a family archive.</p>
+            </div>
+            <Row className="g-3">
+              {[
+                ['1', 'Add memories', 'Upload photos, documents, videos, or audio from your computer.'],
+                ['2', 'Add details', 'Give each memory a title, date, location, people, tags, and notes.'],
+                ['3', 'Find them later', 'Use Search or Browse to rediscover memories by person, collection, tag, date, or note.'],
+                ['4', 'Protect your vault', 'Use Vault Settings to create a backup or shareable copy.']
+              ].map(([step, title, copy]) => (
+                <Col md={6} xl={3} key={step}>
+                  <div className="home-guide-step">
+                    <span>{step}</span>
+                    <h3>{title}</h3>
+                    <p>{copy}</p>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+            <div className="d-flex flex-wrap gap-2 mt-3">
+              <Link to="/upload" className="btn btn-warning">Upload Memories</Link>
+              <Link to="/search" className="btn btn-outline-primary">Search Memories</Link>
+              <Link to="/vault-settings" className="btn btn-outline-secondary">Vault Settings</Link>
+            </div>
+          </Card.Body>
+        </Card>
+      </section>
 
       <section className="home-section">
         <div className="home-section__heading">
@@ -153,7 +188,7 @@ const HomePage = () => {
                 <span className="home-action-card__icon home-action-card__icon--gold">
                   <i className="bi bi-cloud-arrow-up" aria-hidden="true" />
                 </span>
-                <Card.Title>Upload Media</Card.Title>
+                <Card.Title>Upload Memories</Card.Title>
                 <Card.Text>Add photos, videos, documents, and details to your offline archive.</Card.Text>
                 <Link to="/upload" className="btn btn-warning mt-auto align-self-start">
                   Add memories
@@ -267,6 +302,21 @@ const HomePage = () => {
         </Row>
       </section>
 
+
+      <section className="home-section">
+        <Card className="home-tips-card border-0">
+          <Card.Body>
+            <h2>Tips</h2>
+            <ul>
+              <li>Use Collections for big groups of memories.</li>
+              <li>Use People for family member names.</li>
+              <li>Use Tags for themes like Christmas, school, weddings, or vacations.</li>
+              <li>Use Memory Notes when you are unsure or want to record who told you something.</li>
+            </ul>
+          </Card.Body>
+        </Card>
+      </section>
+
       <section className="home-section home-recent-section">
         <div className="home-section__heading">
           <div>
@@ -286,13 +336,12 @@ const HomePage = () => {
               <div className="home-empty-state__icon">
                 <i className="bi bi-images" aria-hidden="true" />
               </div>
-              <h3>Your vault is ready for its first memory.</h3>
+              <h3>Your vault is empty. Start with your first memory.</h3>
               <p>
-                Upload family photos, scanned documents, or home videos to start building a private archive that is
-                searchable and stored locally on your drive.
+                Start by uploading your first family photo, document, video, or audio file. Your memories stay searchable and stored locally on your drive.
               </p>
               <Link to="/upload" className="btn btn-warning home-hero__primary-btn">
-                Upload your first media
+                Upload your first memory
               </Link>
             </Card.Body>
           </Card>

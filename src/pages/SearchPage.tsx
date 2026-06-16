@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Container, Row, Col, Card, Badge, Button, Spinner, Alert } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import FiltersBar from '../components/search/FilterBar';
 import SearchBar, { ReferenceOption, SearchQuery } from '../components/search/SearchBar';
 import DetailsModal, { DetailedMedia } from '../components/search/DetailsModal';
@@ -171,7 +172,7 @@ const SearchPage = () => {
       setHasSearched(true);
     } catch (err) {
       console.error('Error searching media', err);
-      setError('Unable to run search. Please try again.');
+      setError('Something went wrong while searching your memories. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -235,6 +236,9 @@ const SearchPage = () => {
 
   const handleDeleteDetails = async (media: DetailedMedia) => {
     const response = await window.electronAPI.deleteMedia(Number(media.id));
+    if (!response.success) {
+      throw new Error(response.error || 'Delete failed');
+    }
     if (response.success) {
       setShowDetails(false);
       setSelected(undefined);
@@ -257,7 +261,10 @@ const SearchPage = () => {
         mediaTypeId: updated.mediaTypeId || results.find((item) => item.id === updated.id)?.mediaTypeId || undefined,
       };
       const response = await window.electronAPI.updateMediaDetails(payload);
-      if (response.success && response.media) {
+      if (!response.success) {
+        throw new Error(response.error || 'Save failed');
+      }
+      if (response.media) {
         const normalized = await resolveDetailPreview(normalizeDetails(response.media));
         setSelected(normalized);
         setResults((prev) => prev.map((item) => (item.id === String(payload.id) ? { ...item, ...normalized } : item)));
@@ -265,6 +272,7 @@ const SearchPage = () => {
       }
     } catch (err) {
       console.error('Error saving media details', err);
+      throw err;
     }
   };
 
@@ -280,7 +288,7 @@ const SearchPage = () => {
     <Container fluid className="py-4" style={{ maxWidth: '1400px' }}>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h1 className="mb-1">Search Media</h1>
+          <h1 className="mb-1">Search Memories</h1>
           <div className="text-muted">Find a specific memory by title, people, tags, dates, locations, or collections.</div>
         </div>
         {selectedCount > 0 && <span className="badge bg-secondary">{selectedCount} active filters</span>}
@@ -409,7 +417,7 @@ const SearchPage = () => {
             </Card>
           ) : (
             <div className="bg-white rounded-3 shadow-sm p-4 text-center text-muted">
-              {hasSearched ? 'No memories matched your search yet.' : 'Start by searching for memories using the bar above.'}
+              {hasSearched ? (<>No memories found. Try searching by title, person, tag, location, date, or note.</>) : (<>Start by searching for memories using the bar above, or <Link to="/upload">upload your first memory</Link>.</>)}
             </div>
           )}
         </Col>

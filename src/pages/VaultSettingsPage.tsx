@@ -225,7 +225,7 @@ function VaultSettingsPage() {
       }
 
       if (!result.success) {
-        throw new Error(result.error || 'The copy could not be created.');
+        throw new Error(result.error || (kind === 'backup' ? 'Backup failed. Please try again.' : 'Shareable copy failed. Please try again.'));
       }
 
       setCopyOperations((current) => ({
@@ -237,7 +237,7 @@ function VaultSettingsPage() {
         ...current,
         [kind]: {
           status: 'failed',
-          error: err instanceof Error ? err.message : 'The copy could not be created.'
+          error: err instanceof Error ? err.message : (kind === 'backup' ? 'Backup failed. Please try again.' : 'Shareable copy failed. Please try again.')
         }
       }));
     }
@@ -305,7 +305,7 @@ function VaultSettingsPage() {
               <div className="vault-settings-primary-location">
                 <span>Your vault folder</span>
                 <code title={summary.paths.vaultRoot}>{summary.paths.vaultRoot}</code>
-                <p>This folder contains your Memory Vault database and the media archive where imported files are stored.</p>
+                <p>This folder contains your Memory Vault details file and the memories archive where imported files are stored.</p>
               </div>
               <details className="vault-settings-technical-details">
                 <summary>Technical details</summary>
@@ -360,8 +360,8 @@ function VaultSettingsPage() {
                 <p className="vault-settings-muted">Drive usage is unavailable on this system, but vault file sizes are shown below.</p>
               )}
               <div className="vault-settings-metric-grid vault-settings-metric-grid--storage">
-                <MetricCard label="Archive size" value={formatBytes(summary.storage.archiveSizeBytes)} icon="bi-archive" accent="blue" />
-                <MetricCard label="Database size" value={formatBytes(summary.storage.databaseSizeBytes)} icon="bi-database" accent="teal" />
+                <MetricCard label="Memories archive size" value={formatBytes(summary.storage.archiveSizeBytes)} icon="bi-archive" accent="blue" />
+                <MetricCard label="Details file size" value={formatBytes(summary.storage.databaseSizeBytes)} icon="bi-database" accent="teal" />
                 <MetricCard label="Drive free space" value={formatBytes(summary.storage.diskFreeBytes)} icon="bi-device-hdd" accent="green" />
                 <MetricCard label="Drive usage" value={`${formatBytes(summary.storage.diskUsedBytes)} / ${formatBytes(summary.storage.diskTotalBytes)} · ${diskUsedLabel}`} icon="bi-pie-chart" accent="slate" />
               </div>
@@ -374,8 +374,8 @@ function VaultSettingsPage() {
             <Card.Body>
               <div className="vault-settings-card__header">
                 <div>
-                  <p className="vault-settings-eyebrow">Integrity / File Checks</p>
-                  <h2>File integrity checks</h2>
+                  <p className="vault-settings-eyebrow">File Checks</p>
+                  <h2>File checks</h2>
                   <p className="vault-settings-muted">These checks only report issues. Nothing is deleted or modified.</p>
                 </div>
                 <Button variant="outline-primary" onClick={loadVaultHealth}>Refresh checks</Button>
@@ -384,10 +384,10 @@ function VaultSettingsPage() {
                 <Col md={6}>
                   <div className="vault-settings-integrity-box">
                     <div>
-                      <span>Missing files</span>
+                      <span>Memories whose files cannot be found</span>
                       <strong>{summary.integrity.missingFilesCount}</strong>
                     </div>
-                    <p>Media records whose archived file cannot be found on disk.</p>
+                    <p>Memories whose archived file cannot be found on disk.</p>
                     {summary.integrity.missingFiles.length > 0 && (
                       <Button variant="link" className="p-0" onClick={() => setShowMissingDetails((current) => !current)}>
                         {showMissingDetails ? 'Hide details' : 'View details'}
@@ -408,10 +408,10 @@ function VaultSettingsPage() {
                 <Col md={6}>
                   <div className="vault-settings-integrity-box">
                     <div>
-                      <span>Orphan files</span>
+                      <span>Extra files not linked to a memory</span>
                       <strong>{summary.integrity.orphanFilesCount}</strong>
                     </div>
-                    <p>Files in the archive folder that are not referenced by media records.</p>
+                    <p>Files in the archive folder that are not linked to any memory details.</p>
                     {summary.integrity.orphanFiles.length > 0 && (
                       <Button variant="link" className="p-0" onClick={() => setShowOrphanDetails((current) => !current)}>
                         {showOrphanDetails ? 'Hide details' : 'View details'}
@@ -460,7 +460,7 @@ function VaultSettingsPage() {
                     </div>
                     {copyOperations.backup.status === 'complete' && copyOperations.backup.result?.destinationPath && (
                       <Alert variant="success" className="vault-settings-copy-result">
-                        <strong>Backup complete.</strong>
+                        <strong>Backup created successfully.</strong>
                         <code>{copyOperations.backup.result.destinationPath}</code>
                         <span>{copyOperations.backup.result.copiedFileCount ?? 0} files · {formatBytes(copyOperations.backup.result.totalBytesCopied)}</span>
                         <Button size="sm" variant="outline-success" onClick={() => openCreatedOutputFolder(copyOperations.backup.result!.destinationPath!)}>Open Backup Folder</Button>
@@ -483,7 +483,7 @@ function VaultSettingsPage() {
                     </div>
                     {copyOperations.shareable.status === 'complete' && copyOperations.shareable.result?.destinationPath && (
                       <Alert variant="success" className="vault-settings-copy-result">
-                        <strong>Shareable copy complete.</strong>
+                        <strong>Shareable copy created successfully.</strong>
                         <code>{copyOperations.shareable.result.destinationPath}</code>
                         <span>{copyOperations.shareable.result.copiedFileCount ?? 0} files · {formatBytes(copyOperations.shareable.result.totalBytesCopied)}</span>
                         <Button size="sm" variant="outline-success" onClick={() => openCreatedOutputFolder(copyOperations.shareable.result!.destinationPath!)}>Open Copy Folder</Button>
@@ -512,7 +512,7 @@ function VaultSettingsPage() {
               <div className="vault-settings-totals-grid">
                 <MetricCard label="Memories" value={summary.totals.totalMemories} icon="bi-images" accent="indigo" featured />
                 <div className="vault-settings-stat-group">
-                  <span>Media types</span>
+                  <span>Memory types</span>
                   <MetricCard label="Images" value={summary.totals.images} icon="bi-image" accent="blue" />
                   <MetricCard label="Documents" value={summary.totals.documents} icon="bi-file-earmark-text" accent="teal" />
                   <MetricCard label="Videos" value={summary.totals.videos} icon="bi-camera-video" accent="purple" />
@@ -542,9 +542,9 @@ function VaultSettingsPage() {
               </div>
               <div className="vault-settings-status-list">
                 <div><span>Vault folder access</span><StatusBadge status={summary.health.vaultRoot} /></div>
-                <div><span>Database file</span><StatusBadge status={summary.health.databaseFile} /></div>
+                <div><span>Details file</span><StatusBadge status={summary.health.databaseFile} /></div>
                 <div><span>Archive folder</span><StatusBadge status={summary.health.archiveFolder} /></div>
-                <div><span>Database connection</span><StatusBadge status={summary.health.databaseConnection} /></div>
+                <div><span>Details file connection</span><StatusBadge status={summary.health.databaseConnection} /></div>
               </div>
             </Card.Body>
           </Card>
