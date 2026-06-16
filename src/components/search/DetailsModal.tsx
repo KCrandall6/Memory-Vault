@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Col, Form, Modal, Row } from 'react-bootstrap';
+import { Alert, Badge, Button, Col, Form, Modal, Row } from 'react-bootstrap';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { isRendererSafePreviewUrl } from '../recent/recentMedia';
 import EditDetailsModal, { EditableDetails } from './EditDetailsModal';
@@ -35,7 +35,7 @@ type DetailsModalProps = {
   show: boolean;
   media?: DetailedMedia;
   onClose: () => void;
-  onSaveDetails: (updated: DetailedMedia) => void;
+  onSaveDetails: (updated: DetailedMedia) => Promise<void> | void;
   onDeleteDetails?: (media: DetailedMedia) => Promise<void> | void;
   availableMediaTypes: ReferenceOption[];
   availableCollections: ReferenceOption[];
@@ -73,6 +73,7 @@ const DetailsModal = ({
   const [savingNote, setSavingNote] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [memoryNotes, setMemoryNotes] = useState<MemoryNote[]>([]);
+  const [feedback, setFeedback] = useState<{ variant: 'success' | 'danger'; text: string } | null>(null);
 
   const previewSource = useMemo(() => {
     if (!media || previewFailed) return undefined;
@@ -83,7 +84,7 @@ const DetailsModal = ({
 
   const handleImageError = () => setPreviewFailed(true);
 
-  const handleSave = (details: EditableDetails) => {
+  const handleSave = async (details: EditableDetails) => {
     if (!media) return;
     const updated: DetailedMedia = {
       ...media,
@@ -93,8 +94,14 @@ const DetailsModal = ({
       mediaType: details.mediaType,
       mediaTypeId: details.mediaTypeId,
     };
-    onSaveDetails(updated);
-    setEditing(false);
+    try {
+      await onSaveDetails(updated);
+      setFeedback({ variant: 'success', text: 'Details updated.' });
+      setEditing(false);
+    } catch (error) {
+      console.error('Error saving details', error);
+      setFeedback({ variant: 'danger', text: 'Something went wrong while saving this memory. Please try again.' });
+    }
   };
 
   const handleDownload = async () => {
@@ -117,7 +124,11 @@ const DetailsModal = ({
     setDeleting(true);
     try {
       await onDeleteDetails(media);
+      setFeedback({ variant: 'success', text: 'Memory deleted.' });
       setConfirmDelete(false);
+    } catch (error) {
+      console.error('Error deleting memory', error);
+      setFeedback({ variant: 'danger', text: 'Something went wrong while deleting this memory. Please try again.' });
     } finally {
       setDeleting(false);
     }
@@ -155,7 +166,7 @@ const DetailsModal = ({
       });
 
       if (!response.success || !response.note) {
-        throw new Error(response.error || 'The note could not be saved.');
+        throw new Error(response.error || 'Something went wrong while adding this note. Please try again.');
       }
 
       const savedNote = response.note;
@@ -166,8 +177,9 @@ const DetailsModal = ({
       setMemoryNotes((prev) => [...prev, savedNote]);
       setShowAddNote(false);
       setNoteContent('');
+      setFeedback({ variant: 'success', text: 'Note added.' });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'The note could not be saved.';
+      const message = error instanceof Error ? error.message : 'Something went wrong while adding this note. Please try again.';
       setNoteError(message);
     } finally {
       setSavingNote(false);
@@ -186,6 +198,7 @@ const DetailsModal = ({
     setShowAddNote(false);
     setNoteContent('');
     setNoteError(null);
+    setFeedback(null);
   }, [media?.id, media?.thumbnail, media?.fileUrl, media?.memoryNotes]);
 
   return (
@@ -195,6 +208,11 @@ const DetailsModal = ({
           <Modal.Title>Memory details</Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light">
+          {feedback && (
+            <Alert variant={feedback.variant} dismissible onClose={() => setFeedback(null)}>
+              {feedback.text}
+            </Alert>
+          )}
           {media ? (
             <Row className="g-4">
               <Col lg={7}>
@@ -235,7 +253,7 @@ const DetailsModal = ({
                       <h4 className="mb-2">{media.title}</h4>
                       <div className="text-muted small d-flex flex-wrap gap-3">
                         <span>
-                          <span className="fw-semibold">Media Type:</span> {mediaTypeLabel || media.mediaType}
+                          <span className="fw-semibold">File Type:</span> {mediaTypeLabel || media.mediaType}
                         </span>
                         {media.uploadDate && (
                           <span>
@@ -256,6 +274,7 @@ const DetailsModal = ({
 
                   <div className="mb-3">
                     <div className="fw-semibold">Description</div>
+                    <div className="text-muted small mb-1">A short summary of what this memory is.</div>
                     <div className="text-muted">{media.description || '—'}</div>
                   </div>
 
@@ -307,7 +326,10 @@ const DetailsModal = ({
 
                   <div className="mt-3">
                     <div className="d-flex justify-content-between align-items-center">
-                      <div className="fw-semibold">Memory Notes</div>
+                      <div>
+                        <div className="fw-semibold">Memory Notes</div>
+                        <div className="text-muted small">Add family details, guesses, stories, or corrections from different people.</div>
+                      </div>
                       <Button variant="outline-secondary" size="sm" onClick={openAddNoteModal}>
                         Add Note
                       </Button>
@@ -324,7 +346,7 @@ const DetailsModal = ({
                         ))}
                       </div>
                     ) : (
-                      <div className="text-muted mt-2">No notes yet.</div>
+                      <div className="text-muted mt-2">No notes yet. Add family details, guesses, stories, or corrections from different people.</div>
                     )}
                   </div>
 
@@ -384,7 +406,8 @@ const DetailsModal = ({
               />
             </Form.Group>
             <Form.Group controlId="memoryNoteContent" className="mt-3">
-              <Form.Label>Note</Form.Label>
+              <Form.Label>Memory Note</Form.Label>
+              <div className="text-muted small mb-2">Add family details, guesses, stories, or corrections from different people.</div>
               <Form.Control
                 as="textarea"
                 rows={4}
@@ -405,7 +428,7 @@ const DetailsModal = ({
               disabled={savingNote || !noteContent.trim()}
               style={{ backgroundColor: '#1E3A5F', borderColor: '#1E3A5F' }}
             >
-              {savingNote ? 'Saving…' : 'Save Note'}
+              {savingNote ? 'Saving…' : 'Add Note'}
             </Button>
           </Modal.Footer>
         </Form>
@@ -415,7 +438,7 @@ const DetailsModal = ({
         <ConfirmationModal
           show={confirmDelete}
           title="Delete memory?"
-          message="This removes the memory from the vault index and cleans up people/tag links. The archived file will not be deleted from disk."
+          message="This removes the memory from Memory Vault. This action cannot be undone. The archived file will not be deleted."
           cancelLabel="Keep memory"
           confirmLabel="Delete memory"
           destructive

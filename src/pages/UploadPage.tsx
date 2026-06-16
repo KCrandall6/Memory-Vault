@@ -260,17 +260,17 @@ const UploadPage = () => {
 
         setStatusMessage({
           variant: 'success',
-          text: `${metadata.file.name} saved successfully!`
+          text: hasNextMemoryAfterSave ? 'Memory saved. Add details for the next selected file.' : isMultiFileBatch ? 'All selected memories have been saved.' : 'Memory saved.'
         });
       } else {
-        throw new Error(result.error || 'Unknown error occurred');
+        throw new Error(result.error || 'Something went wrong while saving this memory. Please try again.');
       }
     } catch (error) {
       console.error('Error saving file:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setStatusMessage({
         variant: 'danger',
-        text: `Error saving file: ${errorMessage}`
+        text: errorMessage || 'Something went wrong while saving this memory. Please try again.'
       });
     }
   };
@@ -296,7 +296,7 @@ const UploadPage = () => {
   
   return (
     <Container fluid className="py-4">
-      <h1 className="mb-4">Upload & Index Media</h1>
+      <h1 className="mb-4">Upload Memories</h1>
 
       {statusMessage && (
         <Alert
@@ -326,7 +326,7 @@ const UploadPage = () => {
           <Col md={3}>
             <Card className="mb-3">
               <Card.Header>
-                <h5 className="mb-0">Upload Queue</h5>
+                <h5 className="mb-0">Selected Memories</h5>
               </Card.Header>
               <Card.Body className="p-0">
                 <UploadQueue
@@ -352,7 +352,7 @@ const UploadPage = () => {
           <Col md={4}>
             <Card>
               <Card.Header>
-                <h5 className="mb-0">Media Information</h5>
+                <h5 className="mb-0">Memory Details</h5>
               </Card.Header>
               <Card.Body>
                 <MetadataForm

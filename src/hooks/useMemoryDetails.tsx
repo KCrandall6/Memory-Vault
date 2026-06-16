@@ -136,18 +136,25 @@ export const useMemoryDetails = ({ onSaved, onDeleted }: UseMemoryDetailsOptions
         mediaTypeId: updated.mediaTypeId,
       };
       const response = await window.electronAPI.updateMediaDetails(payload);
-      if (response.success && response.media) {
+      if (!response.success) {
+        throw new Error(response.error || 'Save failed');
+      }
+      if (response.media) {
         const normalized = await resolveDetailPreview(normalizeDetailedMedia(response.media));
         setSelected(normalized);
         onSaved?.(normalized);
       }
     } catch (err) {
       console.error('Error saving media details', err);
+      throw err;
     }
   }, [onSaved]);
 
   const handleDeleteDetails = useCallback(async (media: DetailedMedia) => {
     const response = await window.electronAPI.deleteMedia(Number(media.id));
+    if (!response.success) {
+      throw new Error(response.error || 'Delete failed');
+    }
     if (response.success) {
       setShowDetails(false);
       setSelected(undefined);

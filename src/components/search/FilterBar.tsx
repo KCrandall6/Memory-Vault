@@ -26,7 +26,7 @@ const FiltersBar = ({
       [
         {
           key: 'mediaTypes',
-          title: 'Media Type',
+          title: 'File Type',
           options: availableMediaTypes,
           selected: query.mediaTypes,
           type: 'checkbox' as const,

@@ -182,6 +182,7 @@ const EditDetailsModal = ({
 
             <Form.Group controlId="description" className="mt-3">
               <Form.Label>Description</Form.Label>
+              <div className="text-muted small mb-2">A short summary of what this memory is.</div>
               <Form.Control
                 as="textarea"
                 rows={3}
@@ -191,7 +192,7 @@ const EditDetailsModal = ({
             </Form.Group>
 
             <Form.Group controlId="mediaType" className="mt-3">
-              <Form.Label>Media Type</Form.Label>
+              <Form.Label>File Type</Form.Label>
               <Form.Select
                 value={selectedMediaTypeId}
                 onChange={(e) => handleMediaTypeChange(e.target.value)}
