@@ -50,42 +50,56 @@ function resolveSchemaPath() {
   return null;
 }
 
-// Initialize database connection
-let db;
-try {
-  ensureStorageRoot();
-  ensureArchiveDirectory();
-  const dbPath = getDatabasePath();
-  const dbDir = path.dirname(dbPath);
-  
-  console.log(`Database path: ${dbPath}`);
-  
-  // Create database directory if it doesn't exist
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+// Initialize database connection lazily after a Memory Vault Library is selected
+let db = null;
+
+function initializeDatabase() {
+  if (db) return db;
+
+  try {
+    ensureStorageRoot();
+    ensureArchiveDirectory();
+    const dbPath = getDatabasePath();
+    const dbDir = path.dirname(dbPath);
+
+    console.log(`Database path: ${dbPath}`);
+
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+
+    db = new Database(dbPath);
+    db.pragma('foreign_keys = ON');
+
+    const sqlPath = resolveSchemaPath();
+    if (sqlPath) {
+      const sqlScript = fs.readFileSync(sqlPath, 'utf8');
+      db.exec(sqlScript);
+      console.log('Database schema initialized');
+    } else {
+      console.warn('Database schema file not found. Skipping initialization script.');
+    }
+
+    initializeDefaultValues();
+
+    console.log('Database connection established successfully');
+    return db;
+  } catch (error) {
+    console.error('Error connecting to database:', error);
+    db = null;
+    throw error;
   }
-  
-  // Open database connection
-  db = new Database(dbPath);
-  db.pragma('foreign_keys = ON');
-  
-  // Initialize the database with required tables if they don't exist
-  const sqlPath = resolveSchemaPath();
-  if (sqlPath) {
-    const sqlScript = fs.readFileSync(sqlPath, 'utf8');
-    db.exec(sqlScript);
-    console.log('Database schema initialized');
-  } else {
-    console.warn('Database schema file not found. Skipping initialization script.');
+}
+
+function resetDatabaseConnection() {
+  if (db) {
+    db.close();
+    db = null;
   }
-  
-  // Initialize with default values if tables are empty
-  initializeDefaultValues();
-  
-  console.log('Database connection established successfully');
-} catch (error) {
-  console.error('Error connecting to database:', error);
-  db = null;
+}
+
+function requireDb() {
+  return initializeDatabase();
 }
 
 
@@ -153,7 +167,7 @@ function migrateSystemCollectionsToUngrouped() {
 // Initialize default values in lookup tables if they're empty
 function initializeDefaultValues() {
   try {
-    if (!db) return;
+    if (!db) initializeDatabase();
     
     ensureMediaNotesColumn();
     ensureCommentsAuthorNameColumn();
@@ -220,6 +234,7 @@ function getAllMedia() {
 // Add media to the database
 function addMedia(mediaData) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     
     const stmt = db.prepare(`
@@ -518,6 +533,7 @@ function getMemoryNotes(mediaId) {
 
 function addMemoryNote(mediaId, { authorName = '', content = '' } = {}) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     const trimmedContent = String(content || '').trim();
     if (!trimmedContent) throw new Error('Note content is required');
@@ -673,6 +689,7 @@ function replaceMediaPeople(mediaId, people = []) {
 
 function updateMediaWithRelations(id, mediaData) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
 
     db.prepare('BEGIN').run();
@@ -716,7 +733,8 @@ function updateMediaWithRelations(id, mediaData) {
 
 function getVaultStatistics() {
   try {
-    if (!db) {
+    if (!db) initializeDatabase();
+    {
       return {
         databaseConnected: false,
         totals: {
@@ -796,7 +814,8 @@ function getVaultStatistics() {
 
 function getDashboardSummary() {
   try {
-    if (!db) {
+    if (!db) initializeDatabase();
+    {
       return {
         totalMedia: 0,
         collectionsCount: 0,
@@ -1047,6 +1066,7 @@ function getDateMedia(year) {
 
 function updateCollectionDetails(id, { name, description = '' }) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     if (String(id) === UNGROUPED_COLLECTION_ID) throw new Error('Ungrouped Memories is a system grouping and cannot be edited');
     const trimmedName = String(name || '').trim();
@@ -1065,6 +1085,7 @@ function updateCollectionDetails(id, { name, description = '' }) {
 
 function deleteCollectionIfEmpty(id) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     if (String(id) === UNGROUPED_COLLECTION_ID) {
       return { success: false, blocked: true, mediaCount: 0, error: 'Ungrouped Memories is a system grouping and cannot be deleted' };
@@ -1155,6 +1176,7 @@ function getPeople() {
 // Add a tag (if it doesn't exist) and return its ID
 function addTag(name) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     
     // Check if tag exists
@@ -1176,6 +1198,7 @@ function addTag(name) {
 // Add a person (if they don't exist) and return their ID
 function addPerson(name) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     
     // Check if person exists
@@ -1197,6 +1220,7 @@ function addPerson(name) {
 // Link a tag to a media item
 function linkTagToMedia(mediaId, tagId) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     
     const stmt = db.prepare('INSERT OR IGNORE INTO MediaTags (media_id, tag_id) VALUES (?, ?)');
@@ -1211,6 +1235,7 @@ function linkTagToMedia(mediaId, tagId) {
 // Link a person to a media item
 function linkPersonToMedia(mediaId, personId) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     
     const stmt = db.prepare('INSERT OR IGNORE INTO MediaPeople (media_id, person_id) VALUES (?, ?)');
@@ -1225,6 +1250,7 @@ function linkPersonToMedia(mediaId, personId) {
 // Add a new collection with description
 function addCollection(name, description = '') {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     if (isSystemCollectionName(name)) return null;
     
@@ -1248,6 +1274,7 @@ function addCollection(name, description = '') {
 // Update media record
 function updateMedia(id, mediaData) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     
     const stmt = db.prepare(`
@@ -1285,6 +1312,7 @@ function updateMedia(id, mediaData) {
 // Delete media record
 function deleteMedia(id) {
   try {
+    if (!db) initializeDatabase();
     if (!db) throw new Error('Database not initialized');
     
     // Begin transaction
@@ -1320,6 +1348,8 @@ function deleteMedia(id) {
 }
 
 module.exports = {
+  initializeDatabase,
+  resetDatabaseConnection,
   getAllMedia,
   addMedia,
   searchMedia,

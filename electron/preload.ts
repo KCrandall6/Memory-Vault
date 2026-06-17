@@ -13,6 +13,9 @@ type DashboardSummary = {
 
 type VaultPaths = {
   vaultRoot: string;
+  libraryPath: string;
+  settingsPath: string;
+  settingsFileName: string;
   databasePath: string;
   databaseFileName: string;
   archivePath: string;
@@ -76,7 +79,13 @@ type VaultCopyResult = {
   error?: string;
 };
 
+type LibraryStatus = { configured: boolean; activeLibraryPath: string | null; paths: VaultPaths | null };
+
 interface ElectronAPI {
+  getLibraryStatus: () => Promise<LibraryStatus>;
+  chooseCreateNewLibrary: () => Promise<{ success: boolean; canceled?: boolean; paths?: VaultPaths; error?: string }>;
+  chooseOpenExistingLibrary: () => Promise<{ success: boolean; canceled?: boolean; paths?: VaultPaths; error?: string }>;
+  getLibraryPaths: () => Promise<VaultPaths>;
   selectFiles: () => Promise<any[]>;
   saveMedia: (data: any) => Promise<{ success: boolean; mediaId?: number; error?: string }>;
   getFilePreview: (filePath: string) => Promise<{ dataUrl: string; mimeType: string } | null>;
@@ -114,6 +123,10 @@ interface ElectronAPI {
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getLibraryStatus: () => ipcRenderer.invoke('get-library-status'),
+  chooseCreateNewLibrary: () => ipcRenderer.invoke('choose-create-new-library'),
+  chooseOpenExistingLibrary: () => ipcRenderer.invoke('choose-open-existing-library'),
+  getLibraryPaths: () => ipcRenderer.invoke('get-library-paths'),
   selectFiles: () => ipcRenderer.invoke('select-files'),
   saveMedia: (data) => ipcRenderer.invoke('save-media', data),
   getFilePreview: (filePath) => ipcRenderer.invoke('get-file-preview', filePath),
