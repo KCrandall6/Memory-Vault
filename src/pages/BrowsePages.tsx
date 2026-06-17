@@ -347,7 +347,7 @@ const BrowsePage = ({ kind }: { kind: BrowseKind }) => {
               <div className="home-empty-state__icon"><i className={`bi ${config.icon}`} aria-hidden="true" /></div>
               <h3>Nothing to browse yet.</h3>
               <p>{config.empty}</p>
-              <Button as={Link} to="/upload" variant="warning">Upload Memories</Button>
+              <Link to="/upload" className="btn btn-warning">Upload Memories</Link>
             </Card.Body>
           </Card>
         ) : kind === 'tags' ? (
