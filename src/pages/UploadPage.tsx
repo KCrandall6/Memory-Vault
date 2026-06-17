@@ -150,7 +150,6 @@ const UploadPage = () => {
 
   // Handle file selection
   const handleFilesSelected = (files: File[]) => {
-    console.log('Files selected:', files);
     if (!files || files.length === 0) return;
 
     if (selectedFiles.length === 0) {
@@ -195,7 +194,6 @@ const UploadPage = () => {
         }
       };
       
-      console.log('Saving media data:', data);
       
       // Send to Electron main process via IPC
       const result = await window.electronAPI.saveMedia(data);

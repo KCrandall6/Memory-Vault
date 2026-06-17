@@ -17,6 +17,10 @@ const SYSTEM_COLLECTION_NAMES = ['general', 'unfiled memories', 'ungrouped memor
 const UNGROUPED_COLLECTION_ID = 'ungrouped';
 const UNGROUPED_COLLECTION_NAME = 'Ungrouped Memories';
 const UNGROUPED_COLLECTION_DESCRIPTION = 'Memories without a collection.';
+const DEBUG_MEMORY_VAULT = process.env.MEMORY_VAULT_DEBUG === '1';
+function debugLog(...args) {
+  if (DEBUG_MEMORY_VAULT) console.log(...args);
+}
 
 function normalizeCollectionName(name) {
   return String(name || '').trim().toLowerCase();
@@ -62,7 +66,7 @@ function initializeDatabase() {
     const dbPath = getDatabasePath();
     const dbDir = path.dirname(dbPath);
 
-    console.log(`Database path: ${dbPath}`);
+    debugLog(`Database path: ${dbPath}`);
 
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
@@ -75,14 +79,14 @@ function initializeDatabase() {
     if (sqlPath) {
       const sqlScript = fs.readFileSync(sqlPath, 'utf8');
       db.exec(sqlScript);
-      console.log('Database schema initialized');
+      debugLog('Database schema initialized');
     } else {
       console.warn('Database schema file not found. Skipping initialization script.');
     }
 
     initializeDefaultValues();
 
-    console.log('Database connection established successfully');
+    debugLog('Database connection established successfully');
     return db;
   } catch (error) {
     console.error('Error connecting to database:', error);
@@ -108,7 +112,7 @@ function ensureMediaNotesColumn() {
   const hasNotesColumn = columns.some((column) => column.name === 'notes');
   if (!hasNotesColumn) {
     db.prepare('ALTER TABLE Media ADD COLUMN notes TEXT').run();
-    console.log('Added notes column to Media table');
+    debugLog('Added notes column to Media table');
   }
 }
 
@@ -118,7 +122,7 @@ function ensureCommentsAuthorNameColumn() {
   const hasAuthorNameColumn = columns.some((column) => column.name === 'author_name');
   if (!hasAuthorNameColumn) {
     db.prepare('ALTER TABLE Comments ADD COLUMN author_name TEXT').run();
-    console.log('Added author_name column to Comments table');
+    debugLog('Added author_name column to Comments table');
   }
 }
 
@@ -142,7 +146,7 @@ function migrateMediaNotesToComments() {
   `).run();
 
   if (result.changes > 0) {
-    console.log(`Migrated ${result.changes} Media.notes value(s) into Memory Notes`);
+    debugLog(`Migrated ${result.changes} Media.notes value(s) into Memory Notes`);
   }
 }
 
@@ -161,7 +165,7 @@ function migrateSystemCollectionsToUngrouped() {
 
   db.prepare(`UPDATE Media SET collection_id = NULL WHERE collection_id IN (${idPlaceholders})`).run(...ids);
   db.prepare(`DELETE FROM Collections WHERE id IN (${idPlaceholders})`).run(...ids);
-  console.log(`Migrated ${systemCollections.length} legacy default collection(s) to ungrouped media`);
+  debugLog(`Migrated ${systemCollections.length} legacy default collection(s) to ungrouped media`);
 }
 
 // Initialize default values in lookup tables if they're empty
@@ -185,7 +189,7 @@ function initializeDefaultValues() {
       
       const insertStmt = db.prepare('INSERT INTO MediaTypes (name) VALUES (?)');
       mediaTypes.forEach(name => insertStmt.run(name));
-      console.log('Initialized default media types');
+      debugLog('Initialized default media types');
     }
     
     // Check and populate SourceTypes
@@ -202,7 +206,7 @@ function initializeDefaultValues() {
       
       const insertStmt = db.prepare('INSERT INTO SourceTypes (name) VALUES (?)');
       sourceTypes.forEach(name => insertStmt.run(name));
-      console.log('Initialized default source types');
+      debugLog('Initialized default source types');
     }
     
     migrateSystemCollectionsToUngrouped();
@@ -731,10 +735,27 @@ function updateMediaWithRelations(id, mediaData) {
 
 
 
+
+function getDashboardSummary() {
+  const statistics = getVaultStatistics();
+  return {
+    totalMedia: statistics.totals.totalMemories,
+    collectionsCount: statistics.totals.collections,
+    peopleCount: statistics.totals.people,
+    tagsCount: statistics.totals.tags,
+    mediaTypeCounts: {
+      image: statistics.totals.images,
+      document: statistics.totals.documents,
+      video: statistics.totals.videos,
+      audio: statistics.totals.audio
+    }
+  };
+}
+
 function getVaultStatistics() {
   try {
     if (!db) initializeDatabase();
-    {
+    if (!db) {
       return {
         databaseConnected: false,
         totals: {
@@ -808,54 +829,6 @@ function getVaultStatistics() {
         tags: 0
       },
       mediaFiles: []
-    };
-  }
-}
-
-function getDashboardSummary() {
-  try {
-    if (!db) initializeDatabase();
-    {
-      return {
-        totalMedia: 0,
-        collectionsCount: 0,
-        peopleCount: 0,
-        tagsCount: 0,
-        mediaTypeCounts: {}
-      };
-    }
-
-    const totalMedia = db.prepare('SELECT COUNT(*) as count FROM Media').get().count || 0;
-    const collectionsCount = db.prepare('SELECT COUNT(*) as count FROM Collections').get().count || 0;
-    const peopleCount = db.prepare('SELECT COUNT(*) as count FROM People').get().count || 0;
-    const tagsCount = db.prepare('SELECT COUNT(*) as count FROM Tags').get().count || 0;
-    const typeRows = db.prepare(`
-      SELECT LOWER(mt.name) as media_type, COUNT(m.id) as count
-      FROM MediaTypes mt
-      LEFT JOIN Media m ON m.media_type_id = mt.id
-      GROUP BY mt.id, mt.name
-    `).all();
-
-    const mediaTypeCounts = typeRows.reduce((counts, row) => {
-      counts[row.media_type] = row.count || 0;
-      return counts;
-    }, {});
-
-    return {
-      totalMedia,
-      collectionsCount,
-      peopleCount,
-      tagsCount,
-      mediaTypeCounts
-    };
-  } catch (error) {
-    console.error('Error getting dashboard summary:', error);
-    return {
-      totalMedia: 0,
-      collectionsCount: 0,
-      peopleCount: 0,
-      tagsCount: 0,
-      mediaTypeCounts: {}
     };
   }
 }

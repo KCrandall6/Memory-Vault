@@ -7,6 +7,7 @@ declare module './storage-root.cjs' {
   export function readSettings(): { activeLibraryPath?: string; [key: string]: unknown };
   export function writeSettings(settings: { activeLibraryPath?: string; [key: string]: unknown }): void;
   export function looksLikeLibrary(libraryPath: string): boolean;
+  export function isAdoptableLegacyLibrary(libraryPath: string): boolean;
   export function getLegacyVaultCandidates(): string[];
   export function adoptLegacyLibraryIfPresent(): string | null;
   export function getActiveLibraryPath(options?: { adoptLegacy?: boolean }): string | null;
@@ -26,6 +27,7 @@ declare module './storage-root.cjs' {
     readSettings: () => { activeLibraryPath?: string; [key: string]: unknown };
     writeSettings: (settings: { activeLibraryPath?: string; [key: string]: unknown }) => void;
     looksLikeLibrary: (libraryPath: string) => boolean;
+    isAdoptableLegacyLibrary: (libraryPath: string) => boolean;
     getLegacyVaultCandidates: () => string[];
     adoptLegacyLibraryIfPresent: () => string | null;
     getActiveLibraryPath: (options?: { adoptLegacy?: boolean }) => string | null;

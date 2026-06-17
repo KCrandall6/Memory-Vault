@@ -9,19 +9,16 @@ interface FileSelectorProps {
 const FileSelector = ({ onFilesSelected, hasFiles }: FileSelectorProps) => {
   const handleSelectFiles = async () => {
     try {
-      console.log('Selecting files...');
       
       // Use Electron API if available
       if (window.electronAPI?.selectFiles) {
         const fileInfos = await window.electronAPI.selectFiles();
-        console.log('Files selected from Electron:', fileInfos);
         
         if (fileInfos && fileInfos.length > 0) {
           onFilesSelected(fileInfos);
         }
       } else {
         // Fallback to browser file input
-        console.log('Electron API not available, using browser file input');
         
         const input = document.createElement('input');
         input.type = 'file';

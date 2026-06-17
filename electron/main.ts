@@ -24,6 +24,7 @@ const {
   SETTINGS_FILENAME,
   getSettingsPath,
   looksLikeLibrary,
+  isAdoptableLegacyLibrary,
   getActiveLibraryPath,
   setActiveLibraryPath,
   resolveArchiveFilePath,
@@ -41,6 +42,11 @@ export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 const APP_ICON_PATH = path.join(process.env.VITE_PUBLIC, 'memory-vault-logo.png');
+const DEBUG_MEMORY_VAULT = process.env.MEMORY_VAULT_DEBUG === '1';
+const OPEN_DEVTOOLS = process.env.MEMORY_VAULT_OPEN_DEVTOOLS === '1';
+function debugLog(...args: unknown[]) {
+  if (DEBUG_MEMORY_VAULT) console.log(...args);
+}
 
 
 function resolvePreviewFilePath(filePathOrUrl: string): string | null {
@@ -275,18 +281,35 @@ async function chooseOpenExistingLibrary(): Promise<{ success: boolean; canceled
 }
 
 function getLibraryStatus() {
-  const activeLibraryPath = getActiveLibraryPath();
-  if (!activeLibraryPath) {
+  const configuredLibraryPath = getActiveLibraryPath({ adoptLegacy: false });
+  if (configuredLibraryPath) {
+    if (!looksLikeLibrary(configuredLibraryPath)) {
+      return { configured: false, activeLibraryPath: null, paths: null };
+    }
+
+    try {
+      dbOperations.initializeDatabase?.();
+    } catch (error) {
+      console.error('Unable to initialize active Memory Vault Library:', error);
+      return { configured: false, activeLibraryPath: null, paths: null };
+    }
+
+    return { configured: true, activeLibraryPath: configuredLibraryPath, paths: getVaultPaths() };
+  }
+
+  const adoptedLegacyPath = getActiveLibraryPath({ adoptLegacy: true });
+  if (!adoptedLegacyPath || !isAdoptableLegacyLibrary(adoptedLegacyPath)) {
     return { configured: false, activeLibraryPath: null, paths: null };
   }
 
   try {
     dbOperations.initializeDatabase?.();
   } catch (error) {
-    console.error('Unable to initialize active Memory Vault Library:', error);
+    console.error('Unable to initialize legacy Memory Vault Library:', error);
+    return { configured: false, activeLibraryPath: null, paths: null };
   }
 
-  return { configured: true, activeLibraryPath, paths: getVaultPaths() };
+  return { configured: true, activeLibraryPath: adoptedLegacyPath, paths: getVaultPaths() };
 }
 
 
@@ -591,7 +614,7 @@ function setupIpcHandlers() {
 
   // File selection handler
   ipcMain.handle('select-files', async () => {
-    console.log('Showing file dialog...');
+    debugLog('Showing file dialog...');
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
       filters: [
@@ -624,13 +647,13 @@ function setupIpcHandlers() {
         return null;
       }
 
-      console.log('Generating preview for:', previewPath);
+      debugLog('Generating preview for:', previewPath);
 
       const data = await fs.readFile(previewPath);
       const base64 = data.toString('base64');
       const mimeType = getMimeType(previewPath);
 
-      console.log('Preview generated with mime type:', mimeType);
+      debugLog('Preview generated with mime type:', mimeType);
       return {
         dataUrl: `data:${mimeType};base64,${base64}`,
         mimeType
@@ -645,7 +668,7 @@ function setupIpcHandlers() {
   ipcMain.handle('get-media-types', async () => {
     try {
       const types = await dbOperations.getMediaTypes();
-      console.log('Media types from database:', types);
+      debugLog('Media types from database:', types);
       return types.length > 0 ? types : [
         { id: 1, name: 'Image' },
         { id: 2, name: 'Video' },
@@ -908,7 +931,7 @@ function setupIpcHandlers() {
   // Save media handler
   ipcMain.handle('save-media', async (_, data) => {
     try {
-      console.log('Saving media:', data);
+      debugLog('Saving media:', data);
       
       // Process the file
       const processedFile = await processMediaFile(data.filePath, path.basename(data.filePath));
@@ -953,7 +976,7 @@ function setupIpcHandlers() {
       
       // Save media record to database
       const mediaId = await dbOperations.addMedia(mediaData);
-      console.log(`Media saved with ID: ${mediaId}`);
+      debugLog(`Media saved with ID: ${mediaId}`);
       
       // Process tags
       if (data.metadata.tags && data.metadata.tags.length > 0) {
@@ -1006,9 +1029,8 @@ function createWindow() {
     height: 800,
   });
 
-  // Open DevTools for debugging
-  if (VITE_DEV_SERVER_URL) {
-    win.webContents.openDevTools();
+  if (VITE_DEV_SERVER_URL && OPEN_DEVTOOLS) {
+    win.webContents.openDevTools({ mode: 'detach' });
   }
 
   win.webContents.on('did-finish-load', () => {
@@ -1051,7 +1073,7 @@ app.whenReady().then(async () => {
     setupIpcHandlers();
     createWindow();
     
-    console.log('App initialized successfully');
+    debugLog('App initialized successfully');
   } catch (error) {
     console.error('Error during app initialization:', error);
   }

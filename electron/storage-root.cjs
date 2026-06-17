@@ -34,9 +34,24 @@ function looksLikeLibrary(libraryPath) {
   return fs.existsSync(path.join(libraryPath, DATABASE_FILENAME)) && fs.existsSync(path.join(libraryPath, ARCHIVE_FOLDER_NAME));
 }
 
-function hasLegacyVaultData(candidatePath) {
+function directoryHasFiles(directoryPath) {
+  try {
+    if (!fs.existsSync(directoryPath) || !fs.statSync(directoryPath).isDirectory()) return false;
+    return fs.readdirSync(directoryPath).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function isAdoptableLegacyLibrary(candidatePath) {
   if (!candidatePath) return false;
-  return fs.existsSync(path.join(candidatePath, DATABASE_FILENAME)) || fs.existsSync(path.join(candidatePath, ARCHIVE_FOLDER_NAME));
+  if (looksLikeLibrary(candidatePath)) return true;
+
+  const databasePath = path.join(candidatePath, DATABASE_FILENAME);
+  if (fs.existsSync(databasePath)) return true;
+
+  const archivePath = path.join(candidatePath, ARCHIVE_FOLDER_NAME);
+  return directoryHasFiles(archivePath);
 }
 
 function getLegacyVaultCandidates() {
@@ -55,7 +70,7 @@ function adoptLegacyLibraryIfPresent() {
   const settings = readSettings();
   if (settings.activeLibraryPath) return settings.activeLibraryPath;
 
-  const legacyPath = getLegacyVaultCandidates().find(hasLegacyVaultData);
+  const legacyPath = getLegacyVaultCandidates().find(isAdoptableLegacyLibrary);
   if (!legacyPath) return null;
 
   writeSettings({ ...settings, activeLibraryPath: legacyPath });
@@ -122,6 +137,7 @@ module.exports = {
   readSettings,
   writeSettings,
   looksLikeLibrary,
+  isAdoptableLegacyLibrary,
   getLegacyVaultCandidates,
   adoptLegacyLibraryIfPresent,
   getActiveLibraryPath,
