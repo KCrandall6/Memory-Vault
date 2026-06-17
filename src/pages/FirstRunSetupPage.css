@@ -1,0 +1,68 @@
+.first-run-setup {
+  align-items: center;
+  background: linear-gradient(135deg, #fff8ec 0%, #eef6ff 100%);
+  display: flex;
+  min-height: 100vh;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.first-run-setup__card {
+  border: 0;
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(31, 41, 55, 0.14);
+  max-width: 680px;
+  text-align: center;
+  width: 100%;
+}
+
+.first-run-setup__card .card-body {
+  padding: 3rem;
+}
+
+.first-run-setup__icon {
+  align-items: center;
+  background: #f5b84b;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  font-size: 2rem;
+  height: 72px;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  width: 72px;
+}
+
+.first-run-setup h1 {
+  color: #1f2937;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.first-run-setup__lead {
+  color: #4b5563;
+  font-size: 1.15rem;
+  line-height: 1.6;
+  margin: 0 auto 2rem;
+  max-width: 520px;
+}
+
+.first-run-setup__actions {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem auto;
+  max-width: 420px;
+}
+
+.first-run-setup__actions .btn {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.first-run-setup__note {
+  color: #6b7280;
+  margin: 0 auto;
+  max-width: 520px;
+}

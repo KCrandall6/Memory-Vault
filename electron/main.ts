@@ -8,7 +8,6 @@ import fs from 'fs/promises';
 // @ts-expect-error - CommonJS helper declaration is not resolved by bundler mode
 import storageRoot from './storage-root.cjs';
 
-import { testDatabase } from './db-test';
 
 // Import database operations - keep this as CommonJS import
 // @ts-expect-error - CommonJS database module has no TypeScript declarations
@@ -16,14 +15,18 @@ import dbOperations from './database.cjs';
 
 
 // Import file handler as ES module
-import { 
-  processMediaFile,
-  ensureDirectoriesExist
-} from './file-handler.js';
+import { processMediaFile } from './file-handler.js';
 
 const {
+  LIBRARY_FOLDER_NAME,
   ARCHIVE_FOLDER_NAME,
   DATABASE_FILENAME,
+  SETTINGS_FILENAME,
+  getSettingsPath,
+  looksLikeLibrary,
+  isAdoptableLegacyLibrary,
+  getActiveLibraryPath,
+  setActiveLibraryPath,
   resolveArchiveFilePath,
   resolveStorageRoot
 } = storageRoot;
@@ -39,6 +42,11 @@ export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 const APP_ICON_PATH = path.join(process.env.VITE_PUBLIC, 'memory-vault-logo.png');
+const DEBUG_MEMORY_VAULT = process.env.MEMORY_VAULT_DEBUG === '1';
+const OPEN_DEVTOOLS = process.env.MEMORY_VAULT_OPEN_DEVTOOLS === '1';
+function debugLog(...args: unknown[]) {
+  if (DEBUG_MEMORY_VAULT) console.log(...args);
+}
 
 
 function resolvePreviewFilePath(filePathOrUrl: string): string | null {
@@ -199,11 +207,109 @@ function getVaultPaths() {
 
   return {
     vaultRoot,
+    libraryPath: vaultRoot,
+    settingsPath: getSettingsPath(),
+    settingsFileName: SETTINGS_FILENAME,
     databasePath,
     databaseFileName: DATABASE_FILENAME,
     archivePath,
     archiveFolderName: ARCHIVE_FOLDER_NAME
   };
+}
+
+async function initializeSelectedLibrary(libraryPath: string) {
+  await fs.mkdir(libraryPath, { recursive: true });
+  await fs.mkdir(path.join(libraryPath, ARCHIVE_FOLDER_NAME), { recursive: true });
+  setActiveLibraryPath(libraryPath);
+  dbOperations.resetDatabaseConnection?.();
+  dbOperations.initializeDatabase?.();
+  return getVaultPaths();
+}
+
+async function validateLibraryPath(candidatePath: string): Promise<{ valid: boolean; libraryPath?: string; error?: string }> {
+  if (!candidatePath) return { valid: false, error: 'Please choose a Memory Vault Library folder.' };
+  if (looksLikeLibrary(candidatePath)) return { valid: true, libraryPath: candidatePath };
+
+  const childLibraryPath = path.join(candidatePath, LIBRARY_FOLDER_NAME);
+  if (looksLikeLibrary(childLibraryPath)) return { valid: true, libraryPath: childLibraryPath };
+
+  return {
+    valid: false,
+    error: 'This does not look like a Memory Vault Library. Please choose a folder that contains memoryvault.db and Memory Vault Archive.'
+  };
+}
+
+async function chooseCreateNewLibrary(): Promise<{ success: boolean; canceled?: boolean; paths?: ReturnType<typeof getVaultPaths>; error?: string }> {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Choose where to keep your memories',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+  const parentPath = filePaths[0];
+  const preferredLibraryPath = path.join(parentPath, LIBRARY_FOLDER_NAME);
+  let libraryPath = preferredLibraryPath;
+
+  if (await pathExists(preferredLibraryPath)) {
+    if (looksLikeLibrary(preferredLibraryPath)) {
+      const paths = await initializeSelectedLibrary(preferredLibraryPath);
+      return { success: true, paths };
+    }
+    libraryPath = await resolveUniqueChildDirectory(parentPath, LIBRARY_FOLDER_NAME);
+  }
+
+  const paths = await initializeSelectedLibrary(libraryPath);
+  return { success: true, paths };
+}
+
+async function chooseOpenExistingLibrary(): Promise<{ success: boolean; canceled?: boolean; paths?: ReturnType<typeof getVaultPaths>; error?: string }> {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Open an Existing Memory Vault Library',
+    properties: ['openDirectory']
+  });
+
+  if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+  const validation = await validateLibraryPath(filePaths[0]);
+  if (!validation.valid || !validation.libraryPath) {
+    return { success: false, error: validation.error };
+  }
+
+  const paths = await initializeSelectedLibrary(validation.libraryPath);
+  return { success: true, paths };
+}
+
+function getLibraryStatus() {
+  const configuredLibraryPath = getActiveLibraryPath({ adoptLegacy: false });
+  if (configuredLibraryPath) {
+    if (!looksLikeLibrary(configuredLibraryPath)) {
+      return { configured: false, activeLibraryPath: null, paths: null };
+    }
+
+    try {
+      dbOperations.initializeDatabase?.();
+    } catch (error) {
+      console.error('Unable to initialize active Memory Vault Library:', error);
+      return { configured: false, activeLibraryPath: null, paths: null };
+    }
+
+    return { configured: true, activeLibraryPath: configuredLibraryPath, paths: getVaultPaths() };
+  }
+
+  const adoptedLegacyPath = getActiveLibraryPath({ adoptLegacy: true });
+  if (!adoptedLegacyPath || !isAdoptableLegacyLibrary(adoptedLegacyPath)) {
+    return { configured: false, activeLibraryPath: null, paths: null };
+  }
+
+  try {
+    dbOperations.initializeDatabase?.();
+  } catch (error) {
+    console.error('Unable to initialize legacy Memory Vault Library:', error);
+    return { configured: false, activeLibraryPath: null, paths: null };
+  }
+
+  return { configured: true, activeLibraryPath: adoptedLegacyPath, paths: getVaultPaths() };
 }
 
 
@@ -254,8 +360,9 @@ async function writeTextFileWithStats(destinationPath: string, contents: string,
 }
 
 function buildShareableCopyReadme() {
-  return `Memory Vault Shareable Copy\n\nThis folder contains a copy of Memory Vault archive data.\n\nWhat's included:\n- The Memory Vault SQLite database with memory metadata.\n- The archived media files that were stored in the vault archive folder.\n- A copy-info.json manifest describing when and where this copy was created.\n\nWhat is not included:\n- This folder does not necessarily include the Memory Vault application itself.\n- This folder does not grant any additional app license or software distribution rights.\n\nHow to use this copy:\nFor now, keep this folder as a preserved data copy for a family member. Once Memory Vault supports vault switching or import, open or import this folder with Memory Vault to browse the copied archive data.\n`;
+  return `Memory Vault Shareable Copy\n\nThis folder contains Memory Vault library data. To open it, install Memory Vault and choose Open an Existing Library.\n\nWhat's included:\n- memoryvault.db\n- Memory Vault Archive/\n- copy-info.json\n\nKeep this folder together so Memory Vault can recognize it as an existing Memory Vault Library.\n`;
 }
+
 
 async function createVaultCopy(copyType: VaultCopyType): Promise<VaultCopyResult> {
   const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -412,6 +519,28 @@ async function buildVaultHealth() {
 // Set up IPC handlers
 function setupIpcHandlers() {
 
+  ipcMain.handle('get-library-status', async () => getLibraryStatus());
+
+  ipcMain.handle('choose-create-new-library', async () => {
+    try {
+      return await chooseCreateNewLibrary();
+    } catch (error) {
+      console.error('Error creating Memory Vault Library:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to create Memory Vault Library.' };
+    }
+  });
+
+  ipcMain.handle('choose-open-existing-library', async () => {
+    try {
+      return await chooseOpenExistingLibrary();
+    } catch (error) {
+      console.error('Error opening Memory Vault Library:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to open Memory Vault Library.' };
+    }
+  });
+
+  ipcMain.handle('get-library-paths', async () => getVaultPaths());
+
   ipcMain.handle('get-vault-settings', async () => {
     try {
       return getVaultPaths();
@@ -485,7 +614,7 @@ function setupIpcHandlers() {
 
   // File selection handler
   ipcMain.handle('select-files', async () => {
-    console.log('Showing file dialog...');
+    debugLog('Showing file dialog...');
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
       filters: [
@@ -518,13 +647,13 @@ function setupIpcHandlers() {
         return null;
       }
 
-      console.log('Generating preview for:', previewPath);
+      debugLog('Generating preview for:', previewPath);
 
       const data = await fs.readFile(previewPath);
       const base64 = data.toString('base64');
       const mimeType = getMimeType(previewPath);
 
-      console.log('Preview generated with mime type:', mimeType);
+      debugLog('Preview generated with mime type:', mimeType);
       return {
         dataUrl: `data:${mimeType};base64,${base64}`,
         mimeType
@@ -539,7 +668,7 @@ function setupIpcHandlers() {
   ipcMain.handle('get-media-types', async () => {
     try {
       const types = await dbOperations.getMediaTypes();
-      console.log('Media types from database:', types);
+      debugLog('Media types from database:', types);
       return types.length > 0 ? types : [
         { id: 1, name: 'Image' },
         { id: 2, name: 'Video' },
@@ -802,7 +931,7 @@ function setupIpcHandlers() {
   // Save media handler
   ipcMain.handle('save-media', async (_, data) => {
     try {
-      console.log('Saving media:', data);
+      debugLog('Saving media:', data);
       
       // Process the file
       const processedFile = await processMediaFile(data.filePath, path.basename(data.filePath));
@@ -847,7 +976,7 @@ function setupIpcHandlers() {
       
       // Save media record to database
       const mediaId = await dbOperations.addMedia(mediaData);
-      console.log(`Media saved with ID: ${mediaId}`);
+      debugLog(`Media saved with ID: ${mediaId}`);
       
       // Process tags
       if (data.metadata.tags && data.metadata.tags.length > 0) {
@@ -900,9 +1029,8 @@ function createWindow() {
     height: 800,
   });
 
-  // Open DevTools for debugging
-  if (VITE_DEV_SERVER_URL) {
-    win.webContents.openDevTools();
+  if (VITE_DEV_SERVER_URL && OPEN_DEVTOOLS) {
+    win.webContents.openDevTools({ mode: 'detach' });
   }
 
   win.webContents.on('did-finish-load', () => {
@@ -939,17 +1067,13 @@ app.whenReady().then(async () => {
       app.dock.setIcon(APP_ICON_PATH);
     }
 
-    // Initialize database
-    const dbTestResult = await testDatabase();
-    console.log('Database test result:', dbTestResult);
-    
-    // Create necessary directories
-    await ensureDirectoriesExist();
-    
+    // Database and archive directories are initialized after a Memory Vault Library is selected.
+    getLibraryStatus();
+
     setupIpcHandlers();
     createWindow();
     
-    console.log('App initialized successfully');
+    debugLog('App initialized successfully');
   } catch (error) {
     console.error('Error during app initialization:', error);
   }

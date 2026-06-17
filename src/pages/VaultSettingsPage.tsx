@@ -297,15 +297,15 @@ function VaultSettingsPage() {
             <Card.Body>
               <div className="vault-settings-card__header">
                 <div>
-                  <p className="vault-settings-eyebrow">Vault Location</p>
-                  <h2>Your vault is stored here</h2>
+                  <p className="vault-settings-eyebrow">Memory Vault Library</p>
+                  <h2>Your Memory Vault Library is stored here</h2>
                 </div>
                 <i className="bi bi-folder2-open" />
               </div>
               <div className="vault-settings-primary-location">
-                <span>Your vault folder</span>
+                <span>Library folder</span>
                 <code title={summary.paths.vaultRoot}>{summary.paths.vaultRoot}</code>
-                <p>This folder contains your Memory Vault details file and the memories archive where imported files are stored.</p>
+                <p>Your memories and details are stored here, separate from the Memory Vault app.</p>
               </div>
               <details className="vault-settings-technical-details">
                 <summary>Technical details</summary>
@@ -313,7 +313,7 @@ function VaultSettingsPage() {
                 <PathRow label="Media archive folder" value={summary.paths.archivePath} />
               </details>
               <div className="vault-settings-actions">
-                <Button onClick={() => openFolder('vault')}><i className="bi bi-folder2-open me-2" />Open Vault Folder</Button>
+                <Button onClick={() => openFolder('vault')}><i className="bi bi-folder2-open me-2" />Open Library Folder</Button>
                 <Button variant="outline-secondary" onClick={() => openFolder('archive')}>Open Archive Folder</Button>
               </div>
             </Card.Body>
@@ -440,20 +440,20 @@ function VaultSettingsPage() {
             <Card.Body>
               <div className="vault-settings-card__header">
                 <div>
-                  <p className="vault-settings-eyebrow">Vault Management</p>
+                  <p className="vault-settings-eyebrow">Library Management</p>
                   <h2>Backup &amp; Copy</h2>
-                  <p className="vault-settings-muted">Create a safety backup of your vault or prepare a copy of your archive data to share with family.</p>
+                  <p className="vault-settings-muted">Create a safety backup of your Memory Vault Library or prepare a copy to share with family.</p>
                 </div>
                 <i className="bi bi-copy" />
               </div>
-              <p className="vault-settings-copy-note">Backups are for protecting your archive. Shareable copies are for giving another family member a copy of the vault data.</p>
+              <p className="vault-settings-copy-note">Backups protect your Memory Vault Library. Shareable copies give another family member a copy they can open later as an existing library.</p>
               <Row className="g-3">
                 <Col md={6}>
                   <div className="vault-settings-copy-action vault-settings-copy-action--backup">
                     <div className="vault-settings-copy-action__icon"><i className="bi bi-shield-lock" /></div>
                     <div className="vault-settings-copy-action__body">
                       <h3>Create Backup</h3>
-                      <p>Backups preserve your vault database and archived media so you can restore them later.</p>
+                      <p>Backups preserve your Memory Vault Library so you can restore your memories and details later.</p>
                       <Button disabled={isCopyOperationRunning} onClick={() => startCopyOperation('backup')}>
                         {copyOperations.backup.status === 'creating' ? 'Creating backup…' : 'Create Backup'}
                       </Button>
@@ -476,7 +476,7 @@ function VaultSettingsPage() {
                     <div className="vault-settings-copy-action__icon"><i className="bi bi-people" /></div>
                     <div className="vault-settings-copy-action__body">
                       <h3>Create Shareable Copy</h3>
-                      <p>A shareable copy contains your archive data so another family member can keep a copy of the memories.</p>
+                      <p>A shareable copy contains Memory Vault Library data so another family member can keep and open a copy of the memories.</p>
                       <Button variant="outline-primary" disabled={isCopyOperationRunning} onClick={() => startCopyOperation('shareable')}>
                         {copyOperations.shareable.status === 'creating' ? 'Creating copy…' : 'Create Shareable Copy'}
                       </Button>
@@ -541,7 +541,7 @@ function VaultSettingsPage() {
                 <i className="bi bi-shield-check" />
               </div>
               <div className="vault-settings-status-list">
-                <div><span>Vault folder access</span><StatusBadge status={summary.health.vaultRoot} /></div>
+                <div><span>Library folder access</span><StatusBadge status={summary.health.vaultRoot} /></div>
                 <div><span>Details file</span><StatusBadge status={summary.health.databaseFile} /></div>
                 <div><span>Archive folder</span><StatusBadge status={summary.health.archiveFolder} /></div>
                 <div><span>Details file connection</span><StatusBadge status={summary.health.databaseConnection} /></div>

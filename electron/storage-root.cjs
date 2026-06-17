@@ -3,14 +3,99 @@ const path = require('path');
 const fs = require('fs');
 const { fileURLToPath } = require('url');
 
+const LIBRARY_FOLDER_NAME = 'Memory Vault Library';
 const ARCHIVE_FOLDER_NAME = 'Memory Vault Archive';
 const DATABASE_FILENAME = 'memoryvault.db';
+const SETTINGS_FILENAME = 'memory-vault-settings.json';
+
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), SETTINGS_FILENAME);
+}
+
+function readSettings() {
+  try {
+    const settingsPath = getSettingsPath();
+    if (!fs.existsSync(settingsPath)) return {};
+    return JSON.parse(fs.readFileSync(settingsPath, 'utf8')) || {};
+  } catch (error) {
+    console.warn('Unable to read Memory Vault settings:', error);
+    return {};
+  }
+}
+
+function writeSettings(settings) {
+  const settingsPath = getSettingsPath();
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
+}
+
+function looksLikeLibrary(libraryPath) {
+  if (!libraryPath) return false;
+  return fs.existsSync(path.join(libraryPath, DATABASE_FILENAME)) && fs.existsSync(path.join(libraryPath, ARCHIVE_FOLDER_NAME));
+}
+
+function directoryHasFiles(directoryPath) {
+  try {
+    if (!fs.existsSync(directoryPath) || !fs.statSync(directoryPath).isDirectory()) return false;
+    return fs.readdirSync(directoryPath).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function isAdoptableLegacyLibrary(candidatePath) {
+  if (!candidatePath) return false;
+  if (looksLikeLibrary(candidatePath)) return true;
+
+  const databasePath = path.join(candidatePath, DATABASE_FILENAME);
+  if (fs.existsSync(databasePath)) return true;
+
+  const archivePath = path.join(candidatePath, ARCHIVE_FOLDER_NAME);
+  return directoryHasFiles(archivePath);
+}
+
+function getLegacyVaultCandidates() {
+  const candidates = [
+    path.join(app.getPath('userData'), 'MemoryVault')
+  ];
+
+  if (app.isPackaged) {
+    candidates.push(path.dirname(process.execPath));
+  }
+
+  return Array.from(new Set(candidates.map((candidate) => path.normalize(candidate))));
+}
+
+function adoptLegacyLibraryIfPresent() {
+  const settings = readSettings();
+  if (settings.activeLibraryPath) return settings.activeLibraryPath;
+
+  const legacyPath = getLegacyVaultCandidates().find(isAdoptableLegacyLibrary);
+  if (!legacyPath) return null;
+
+  writeSettings({ ...settings, activeLibraryPath: legacyPath });
+  return legacyPath;
+}
+
+function getActiveLibraryPath({ adoptLegacy = true } = {}) {
+  const settings = readSettings();
+  if (settings.activeLibraryPath) return settings.activeLibraryPath;
+  return adoptLegacy ? adoptLegacyLibraryIfPresent() : null;
+}
+
+function setActiveLibraryPath(libraryPath) {
+  const settings = readSettings();
+  const normalizedLibraryPath = path.normalize(libraryPath);
+  writeSettings({ ...settings, activeLibraryPath: normalizedLibraryPath });
+  return normalizedLibraryPath;
+}
 
 function resolveStorageRoot() {
-  if (app.isPackaged) {
-    return path.dirname(process.execPath);
+  const activeLibraryPath = getActiveLibraryPath();
+  if (!activeLibraryPath) {
+    throw new Error('No Memory Vault Library has been selected yet.');
   }
-  return path.join(app.getPath('userData'), 'MemoryVault');
+  return activeLibraryPath;
 }
 
 function ensureStorageRoot() {
@@ -44,8 +129,19 @@ function getDatabasePath() {
 }
 
 module.exports = {
+  LIBRARY_FOLDER_NAME,
   ARCHIVE_FOLDER_NAME,
   DATABASE_FILENAME,
+  SETTINGS_FILENAME,
+  getSettingsPath,
+  readSettings,
+  writeSettings,
+  looksLikeLibrary,
+  isAdoptableLegacyLibrary,
+  getLegacyVaultCandidates,
+  adoptLegacyLibraryIfPresent,
+  getActiveLibraryPath,
+  setActiveLibraryPath,
   resolveStorageRoot,
   ensureStorageRoot,
   ensureArchiveDirectory,

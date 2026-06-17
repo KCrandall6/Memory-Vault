@@ -32,7 +32,6 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
       return;
     }
     
-    console.log('File to preview:', file);
     
     setIsLoading(true);
     setError(null);
@@ -46,16 +45,11 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
     }
     // Electron file object
     else if (file.path) {
-      const extension = file.path.toLowerCase().split('.').pop();
-      console.log('File extension:', extension);
-      
       // Get preview using IPC
       if (window.electronAPI?.getFilePreview) {
-        console.log('Requesting file preview for:', file.path);
         
         window.electronAPI.getFilePreview(file.path)
           .then(result => {
-            console.log('Preview result:', result ? 'Success' : 'Failed');
             
             if (result) {
               setPreviewUrl(result.dataUrl);
