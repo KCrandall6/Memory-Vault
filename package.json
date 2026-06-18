@@ -1,7 +1,10 @@
 {
-  "name": "temp-project---template-react",
+  "name": "memory-vault",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "productName": "Memory Vault",
+  "description": "A local-first family memory archive.",
+  "author": "Kurt Crandall",
   "engines": {
     "node": ">=20 <23"
   },
@@ -9,10 +12,48 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build && electron-builder",
+    "build:win": "tsc && vite build && electron-builder --win",
+    "build:installer": "tsc && vite build && electron-builder --win nsis",
+    "build:portable": "tsc && vite build && electron-builder --win portable",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "electron:dev": "npm run dev",
     "renderer:dev": "vite --host 127.0.0.1 --config vite.renderer.config.ts"
+  },
+  "build": {
+    "appId": "com.kcrandall.memoryvault",
+    "productName": "Memory Vault",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "resources/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**",
+      "node_modules/sqlite3/**",
+      "node_modules/sharp/**"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "MemoryVault-${version}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Memory Vault"
+    },
+    "portable": {
+      "artifactName": "MemoryVault-Portable-${version}.${ext}"
+    }
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
