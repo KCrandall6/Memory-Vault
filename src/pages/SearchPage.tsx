@@ -184,7 +184,9 @@ const SearchPage = () => {
     const resolvePreviews = async () => {
       setResolvedResults(results);
 
-      if (!window.electronAPI?.getFilePreview) {
+      const getFilePreview = window.electronAPI?.getFilePreview;
+
+      if (!getFilePreview) {
         return;
       }
 
@@ -196,7 +198,7 @@ const SearchPage = () => {
           if (!candidate) return result;
 
           try {
-            const preview = await window.electronAPI.getFilePreview(candidate);
+            const preview = await getFilePreview(candidate);
             if (preview?.dataUrl) {
               return { ...result, thumbnail: preview.dataUrl };
             }
