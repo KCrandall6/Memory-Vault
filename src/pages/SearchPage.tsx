@@ -34,56 +34,76 @@ const mediaTypeIcon: Record<string, string> = {
   audio: 'bi-music-note',
 };
 
-const mapReference = (items: any[] = []): ReferenceOption[] =>
+type SearchRow = Record<string, unknown>;
+
+const readString = (row: SearchRow, key: string, fallback = '') => {
+  const value = row[key];
+  return typeof value === 'string' ? value : fallback;
+};
+
+const readNumber = (row: SearchRow, key: string) => {
+  const value = row[key];
+  return typeof value === 'number' ? value : undefined;
+};
+
+const readStringArray = (row: SearchRow, key: string) => {
+  const value = row[key];
+  return Array.isArray(value) ? value.map(String) : [];
+};
+
+const mapReference = (items: Array<{ id: number | string; name: string }> = []): ReferenceOption[] =>
   items.map((item) => ({ id: String(item.id), name: item.name }));
 
 
-const normalizeMemoryNotes = (row: any) => {
+const normalizeMemoryNotes = (row: SearchRow) => {
   const notes = row.memory_notes || row.memoryNotes || [];
   return Array.isArray(notes)
-    ? notes.map((note) => ({
-        id: Number(note.id),
-        media_id: Number(note.media_id),
-        author_name: typeof note.author_name === 'string' ? note.author_name : null,
-        content: String(note.content || ''),
-        created_at: String(note.created_at || '')
-      }))
+    ? notes.map((note) => {
+        const memoryNote = note as SearchRow;
+        return {
+          id: Number(memoryNote.id),
+          media_id: Number(memoryNote.media_id),
+          author_name: typeof memoryNote.author_name === 'string' ? memoryNote.author_name : null,
+          content: String(memoryNote.content || ''),
+          created_at: String(memoryNote.created_at || '')
+        };
+      })
     : [];
 };
 
-const normalizeResult = (row: any): SearchResult => ({
+const normalizeResult = (row: SearchRow): SearchResult => ({
   id: String(row.id),
-  title: row.title || row.file_name || 'Untitled memory',
-  description: row.description || '',
-  summary: row.description || undefined,
-  captureDate: row.capture_date || '',
+  title: readString(row, 'title') || readString(row, 'file_name') || 'Untitled memory',
+  description: readString(row, 'description'),
+  summary: readString(row, 'description') || undefined,
+  captureDate: readString(row, 'capture_date'),
   uploadDate: row.created_at ? String(row.created_at).split('T')[0] : undefined,
-  location: row.location || '',
-  collection: row.collection_name || 'Ungrouped Memories',
+  location: readString(row, 'location'),
+  collection: readString(row, 'collection_name') || 'Ungrouped Memories',
   mediaType: row.media_type ? String(row.media_type).toLowerCase() : 'document',
-  mediaTypeId: row.media_type_id,
-  tags: row.tags || [],
-  people: row.people || [],
-  thumbnail: row.thumbnail_url || undefined,
-  filePath: row.file_path || undefined,
-  fileUrl: row.file_url || undefined,
+  mediaTypeId: readNumber(row, 'media_type_id'),
+  tags: readStringArray(row, 'tags'),
+  people: readStringArray(row, 'people'),
+  thumbnail: readString(row, 'thumbnail_url') || undefined,
+  filePath: readString(row, 'file_path') || undefined,
+  fileUrl: readString(row, 'file_url') || undefined,
 });
 
-const normalizeDetails = (row: any): DetailedMedia => ({
+const normalizeDetails = (row: SearchRow): DetailedMedia => ({
   id: String(row.id),
-  title: row.title || row.file_name || 'Untitled memory',
-  description: row.description || '',
-  captureDate: row.capture_date || row.captureDate || '',
-  uploadDate: row.created_at ? String(row.created_at).split('T')[0] : row.uploadDate,
-  location: row.location || '',
-  collection: row.collection_name || row.collection || 'Ungrouped Memories',
-  mediaType: row.media_type ? String(row.media_type).toLowerCase() : row.mediaType || 'document',
-  mediaTypeId: row.media_type_id || row.mediaTypeId || undefined,
-  tags: row.tags || [],
-  people: row.people || [],
-  thumbnail: row.thumbnail_url || row.thumbnail || undefined,
-  filePath: row.file_path || row.filePath || undefined,
-  fileUrl: row.file_url || row.fileUrl || undefined,
+  title: readString(row, 'title') || readString(row, 'file_name') || 'Untitled memory',
+  description: readString(row, 'description'),
+  captureDate: readString(row, 'capture_date') || readString(row, 'captureDate'),
+  uploadDate: row.created_at ? String(row.created_at).split('T')[0] : readString(row, 'uploadDate') || undefined,
+  location: readString(row, 'location'),
+  collection: readString(row, 'collection_name') || readString(row, 'collection') || 'Ungrouped Memories',
+  mediaType: row.media_type ? String(row.media_type).toLowerCase() : readString(row, 'mediaType') || 'document',
+  mediaTypeId: readNumber(row, 'media_type_id') || readNumber(row, 'mediaTypeId'),
+  tags: readStringArray(row, 'tags'),
+  people: readStringArray(row, 'people'),
+  thumbnail: readString(row, 'thumbnail_url') || readString(row, 'thumbnail') || undefined,
+  filePath: readString(row, 'file_path') || readString(row, 'filePath') || undefined,
+  fileUrl: readString(row, 'file_url') || readString(row, 'fileUrl') || undefined,
   memoryNotes: normalizeMemoryNotes(row),
 });
 
