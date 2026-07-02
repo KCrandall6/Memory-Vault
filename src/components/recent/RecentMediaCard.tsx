@@ -37,7 +37,7 @@ const RecentMediaCard = ({ item, onOpen }: RecentMediaCardProps) => {
     return () => {
       cancelled = true;
     };
-  }, [item.fileUrl, item.id, item.mediaType, item.thumbnailUrl]);
+  }, [item]);
 
   const shouldShowPreview = Boolean(previewUrl && !previewFailed);
   const icon = mediaTypeIcon[item.mediaType] || mediaTypeIcon.unknown;

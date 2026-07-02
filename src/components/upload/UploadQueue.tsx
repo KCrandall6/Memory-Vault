@@ -1,11 +1,12 @@
 // src/components/upload/UploadQueue.tsx
 import { ListGroup, Badge } from 'react-bootstrap';
+import { SelectedUploadFile } from '../../types/upload';
 import './UploadQueue.css';
 
 interface UploadQueueProps {
-  files: File[];
-  currentFile: File | null;
-  onFileSelect: (file: File) => void;
+  files: SelectedUploadFile[];
+  currentFile: SelectedUploadFile | null;
+  onFileSelect: (file: SelectedUploadFile) => void;
 }
 
 const UploadQueue = ({ files, currentFile, onFileSelect }: UploadQueueProps) => {
@@ -19,11 +20,12 @@ const UploadQueue = ({ files, currentFile, onFileSelect }: UploadQueueProps) => 
   };
 
   // Function to get icon based on file type
-  const getFileTypeIcon = (file: File) => {
-    if (file.type.startsWith('image/')) return '📷';
-    if (file.type.startsWith('video/')) return '🎥';
-    if (file.type.startsWith('audio/')) return '🎵';
-    if (file.type.includes('pdf')) return '📑';
+  const getFileTypeIcon = (file: SelectedUploadFile) => {
+    const fileType = file.type || '';
+    if (fileType.startsWith('image/')) return '📷';
+    if (fileType.startsWith('video/')) return '🎥';
+    if (fileType.startsWith('audio/')) return '🎵';
+    if (fileType.includes('pdf')) return '📑';
     return '📄';
   };
 
@@ -44,7 +46,7 @@ const UploadQueue = ({ files, currentFile, onFileSelect }: UploadQueueProps) => 
             </div>
           </div>
           <Badge bg="secondary" pill>
-            {formatFileSize(file.size)}
+            {formatFileSize('size' in file && file.size ? file.size : 0)}
           </Badge>
         </ListGroup.Item>
       ))}

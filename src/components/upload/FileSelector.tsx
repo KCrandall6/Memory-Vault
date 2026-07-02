@@ -1,8 +1,9 @@
 // src/components/upload/FileSelector.tsx
 import { Button, Card } from 'react-bootstrap';
+import { SelectedUploadFile } from '../../types/upload';
 
 interface FileSelectorProps {
-  onFilesSelected: (files: any[]) => void;
+  onFilesSelected: (files: SelectedUploadFile[]) => void;
   hasFiles: boolean;
 }
 
