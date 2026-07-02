@@ -43,6 +43,9 @@ jobs:
       - name: Build Windows installer
         run: npm run build:installer
 
+      - name: Verify sandboxed preload output
+        run: npm run verify:preload
+
       - name: Verify installer was created
         shell: pwsh
         run: |

@@ -1,6 +1,9 @@
 // electron/preload.ts - cleaned version
-import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
+
+// Sandboxed Electron preload scripts must load Electron through CommonJS at runtime.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { contextBridge, ipcRenderer }: typeof import('electron') = require('electron');
 
 type DashboardSummary = {
   totalMedia: number;
