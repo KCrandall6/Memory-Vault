@@ -1,6 +1,6 @@
 // src/App.tsx
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Navigate, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import UploadPage from './pages/UploadPage';
@@ -31,7 +31,9 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    // Electron loads the packaged renderer from file://, so hash routing keeps
+    // React Router from treating the app.asar index.html path as an app route.
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
@@ -44,9 +46,10 @@ function App() {
           <Route path="browse/dates" element={<BrowseDatesPage />} />
           <Route path="media/:id" element={<MediaPage />} />
           <Route path="vault-settings" element={<VaultSettingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
