@@ -47,6 +47,9 @@ jobs:
       - name: Verify sandboxed preload output
         run: npm run verify:preload
 
+      - name: Verify updater runtime import interop
+        run: npm run verify:updater-runtime
+
       - name: Verify installer was created
         shell: pwsh
         run: |

@@ -1,3 +1,19 @@
+
+type UpdateStatus = 'unsupported' | 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'downloaded' | 'error';
+
+type UpdateState = {
+  status: UpdateStatus;
+  supported: boolean;
+  currentVersion: string;
+  availableVersion?: string;
+  releaseName?: string | null;
+  releaseDate?: string;
+  lastCheckedAt?: string;
+  nextAutomaticCheckAt?: string;
+  progress?: { percent: number; transferred: number; total: number; bytesPerSecond: number };
+  error?: string;
+};
+
 type DashboardSummary = {
   totalMedia: number;
   collectionsCount: number;
@@ -85,6 +101,11 @@ type VaultCopyResult = {
 type LibraryStatus = { configured: boolean; activeLibraryPath: string | null; paths: VaultPaths | null };
 
 interface ElectronAPI {
+  getUpdateState: () => Promise<UpdateState>;
+  checkForUpdates: () => Promise<UpdateState>;
+  downloadUpdate: () => Promise<UpdateState>;
+  quitAndInstallUpdate: () => Promise<{ success: boolean; error?: string }>;
+  onUpdateStateChanged: (callback: (state: UpdateState) => void) => () => void;
   getLibraryStatus: () => Promise<LibraryStatus>;
   chooseCreateNewLibrary: () => Promise<{ success: boolean; canceled?: boolean; paths?: VaultPaths; error?: string }>;
   chooseOpenExistingLibrary: () => Promise<{ success: boolean; canceled?: boolean; paths?: VaultPaths; error?: string }>;

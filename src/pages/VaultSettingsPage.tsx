@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Col, Row, Spinner } from 'react-bootstrap';
+import { Alert, Badge, Button, Card, Col, ProgressBar, Row, Spinner } from 'react-bootstrap';
+import { useUpdates } from '../updates/useUpdates';
+import type { UpdateState } from '../updates/updateTypes';
 import './VaultSettingsPage.css';
 
 type VaultHealthStatus = 'healthy' | 'needs_attention' | 'missing' | 'unknown';
@@ -69,6 +71,82 @@ function formatBytes(bytes?: number | null) {
   const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** exponent;
   return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+}
+
+
+function formatDateTime(value?: string) {
+  if (!value) return 'Not checked yet';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+  return date.toLocaleString();
+}
+
+function updateStatusLabel(state: UpdateState | null) {
+  if (!state) return 'Loading update status…';
+  const labels: Record<UpdateState['status'], string> = {
+    unsupported: 'Installed Windows build required',
+    idle: 'Ready to check',
+    checking: 'Checking for updates…',
+    'up-to-date': 'Memory Vault is up to date.',
+    available: 'Update available',
+    downloading: 'Downloading update…',
+    downloaded: 'Ready to install',
+    error: 'Update check needs attention'
+  };
+  return labels[state.status];
+}
+
+function ApplicationUpdatesCard() {
+  const { state, loading, checkForUpdates, downloadUpdate, quitAndInstallUpdate } = useUpdates();
+  const isChecking = state?.status === 'checking';
+  const isDownloading = state?.status === 'downloading';
+  const progress = state?.progress;
+
+  const handleInstall = async () => {
+    const confirmed = window.confirm('Memory Vault will close, install the update, and reopen. Your Memory Vault Library is stored separately and will not be removed. Continue?');
+    if (confirmed) await quitAndInstallUpdate();
+  };
+
+  return (
+    <Card id="application-updates" className="vault-settings-card h-100">
+      <Card.Body>
+        <div className="vault-settings-card__header">
+          <div>
+            <p className="vault-settings-eyebrow">Application Updates</p>
+            <h2>Application Updates</h2>
+            <p className="vault-settings-muted">Memory Vault checks approximately once per week. Updates are never downloaded or installed without your permission.</p>
+          </div>
+          <i className="bi bi-cloud-arrow-down" />
+        </div>
+        <div className="vault-settings-update-details" aria-live="polite">
+          <div><span>Current version</span><strong>{state?.currentVersion || 'Unknown'}</strong></div>
+          <div><span>Status</span><strong>{updateStatusLabel(state)}</strong></div>
+          <div><span>Last checked</span><strong>{formatDateTime(state?.lastCheckedAt)}</strong></div>
+          <div><span>Next automatic check</span><strong>{formatDateTime(state?.nextAutomaticCheckAt)}</strong></div>
+        </div>
+
+        {state?.status === 'unsupported' && <Alert variant="secondary">{state.error || 'Real update checks are available only in an installed Windows build.'}</Alert>}
+        {state?.status === 'up-to-date' && <Alert variant="success">Memory Vault is up to date.</Alert>}
+        {state?.status === 'available' && <Alert variant="info">Memory Vault {state.availableVersion} is available. Review the update, then choose whether to download it.</Alert>}
+        {state?.status === 'downloaded' && <Alert variant="success">Memory Vault {state.availableVersion} has downloaded. Memory Vault will close and reopen only if you choose Restart and Install.</Alert>}
+        {state?.status === 'error' && <Alert variant="warning">{state.error || 'Memory Vault could not check for updates. Please try again.'}</Alert>}
+        {isDownloading && (
+          <div className="vault-settings-update-progress">
+            <ProgressBar now={progress?.percent || 0} label={`${Math.round(progress?.percent || 0)}%`} aria-label="Update download progress" />
+            <span>{formatBytes(progress?.transferred)} / {formatBytes(progress?.total)} · {formatBytes(progress?.bytesPerSecond)}/s</span>
+          </div>
+        )}
+
+        <div className="vault-settings-actions">
+          <Button variant="outline-primary" disabled={loading || isChecking || isDownloading} onClick={checkForUpdates}>
+            {isChecking ? <><Spinner size="sm" className="me-2" />Checking…</> : state?.status === 'up-to-date' || state?.status === 'error' ? 'Check Again' : 'Check for updates'}
+          </Button>
+          {state?.status === 'available' && <Button disabled={isDownloading} onClick={downloadUpdate}>Download Update</Button>}
+          {state?.status === 'downloaded' && <Button onClick={handleInstall}>Restart and Install</Button>}
+        </div>
+      </Card.Body>
+    </Card>
+  );
 }
 
 function StatusBadge({ status }: { status: VaultHealthStatus }) {
@@ -318,6 +396,10 @@ function VaultSettingsPage() {
               </div>
             </Card.Body>
           </Card>
+        </Col>
+
+        <Col xs={12}>
+          <ApplicationUpdatesCard />
         </Col>
 
         <Col lg={6}>
