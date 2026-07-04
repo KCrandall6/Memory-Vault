@@ -1,0 +1,107 @@
+name: Publish Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish-windows-release:
+    name: Build and publish Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Print Node and npm versions
+        shell: pwsh
+        run: |
+          node --version
+          npm --version
+
+      - name: Validate tag matches package version
+        shell: pwsh
+        run: |
+          $package = Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json
+          $expectedTag = "v$($package.version)"
+          $actualTag = $env:GITHUB_REF_NAME
+
+          if ($actualTag -ne $expectedTag) {
+            Write-Error "Release tag '$actualTag' does not match package.json version '$($package.version)'. Expected tag: '$expectedTag'."
+            exit 1
+          }
+
+          Write-Host "Validated release tag '$actualTag' matches package.json version '$($package.version)'."
+
+      - name: Validate tagged commit is contained in main
+        shell: pwsh
+        run: |
+          git fetch --no-tags origin main
+          $taggedCommit = git rev-parse HEAD
+          git merge-base --is-ancestor $taggedCommit origin/main
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Tagged commit '$taggedCommit' is not contained in origin/main. Merge the release commit to main before publishing."
+            exit 1
+          }
+
+          Write-Host "Validated tagged commit '$taggedCommit' is contained in origin/main."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build and publish Windows release
+        run: npm run build:release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+
+      - name: Verify sandboxed preload output
+        run: npm run verify:preload
+
+      - name: Verify release files were generated
+        shell: pwsh
+        run: |
+          $releaseDir = Join-Path $env:GITHUB_WORKSPACE 'release'
+          if (-not (Test-Path -LiteralPath $releaseDir -PathType Container)) {
+            Write-Error "Release output directory was not found at: $releaseDir"
+            exit 1
+          }
+
+          $installers = Get-ChildItem -LiteralPath $releaseDir -File -Filter '*.exe' | Where-Object { $_.Name -notlike '*Portable*' }
+          $latestYml = Get-ChildItem -LiteralPath $releaseDir -File -Filter 'latest.yml'
+          $blockmaps = Get-ChildItem -LiteralPath $releaseDir -File -Filter '*.exe.blockmap' | Where-Object { $_.Name -notlike '*Portable*' }
+
+          if ($installers.Count -lt 1) {
+            Write-Error "Expected at least one NSIS .exe installer in: $releaseDir"
+            exit 1
+          }
+
+          if ($latestYml.Count -ne 1) {
+            Write-Error "Expected exactly one latest.yml in: $releaseDir; found $($latestYml.Count)."
+            exit 1
+          }
+
+          if ($blockmaps.Count -lt 1) {
+            Write-Error "Expected at least one installer .blockmap in: $releaseDir"
+            exit 1
+          }
+
+          Write-Host 'Verified release assets:'
+          $installers | ForEach-Object { Write-Host "Installer: $($_.FullName)" }
+          $latestYml | ForEach-Object { Write-Host "Updater metadata: $($_.FullName)" }
+          $blockmaps | ForEach-Object { Write-Host "Blockmap: $($_.FullName)" }
