@@ -46,3 +46,43 @@ git push origin v0.1.0
 ```
 
 Do not reuse or move an already published version tag. If a release was published, create a new package version and a new matching source tag instead.
+
+## User-controlled application updates
+
+Version `0.1.1` is the first Memory Vault release that contains the application updater. Version `0.1.0` cannot update itself because it does not contain updater functionality.
+
+Memory Vault uses Electron Builder's generated `app-update.yml` from the existing GitHub publish configuration. The installed application reads public release metadata from `KCrandall6/Memory-Vault-Releases`; no application-side `RELEASES_TOKEN`, `GH_TOKEN`, or other publishing credential is packaged or required.
+
+Updater policy:
+
+- Real update checks run only in installed packaged Windows NSIS builds.
+- Portable builds should be updated manually by downloading a newer portable package.
+- Development mode returns an unsupported state and does not make live update requests.
+- Memory Vault checks quietly about once every seven days after startup and renderer initialization.
+- Manual checks are always available from Vault Settings and bypass the weekly throttle.
+- Automatic downloads are off.
+- Auto-install-on-quit is off.
+- Forced updates and lockouts are not supported.
+- Updates are installed only after the user clicks Restart and Install and confirms the restart.
+- The updater stores only `lastUpdateCheckAt` in the existing `memory-vault-settings.json` file under Electron `userData`; it does not write to the selected Memory Vault Library, `memoryvault.db`, archive folders, media, thumbnails, collections, people, tags, notes, backups, shareable copies, or first-run selection state.
+
+Update state is owned by the Electron main process in `electron/updater.ts`. The renderer receives sanitized serializable state through narrow IPC channels exposed by preload: `updates:get-state`, `updates:check`, `updates:download`, `updates:quit-and-install`, and `updates:state-changed`. The preload bridge exposes only typed updater methods and a cleanup-returning state subscription; it does not expose `ipcRenderer` or generic channel access.
+
+Unsigned build limitation: this project does not add code-signing credentials in the updater PR. Test and release reviewers should expect normal Windows unsigned-app warnings until code signing is configured; do not disable updater validation or add custom verification bypasses to work around unsigned test builds.
+
+### First real updater test sequence
+
+1. Merge the updater PR.
+2. Confirm `main` CI is green.
+3. Publish and install `v0.1.1` manually.
+4. Create a test Memory Vault Library or use a safe test library.
+5. Add several test memories and metadata.
+6. Create a small visible `v0.1.2` change in a later PR.
+7. Merge and publish `v0.1.2`.
+8. Open installed `v0.1.1`.
+9. Confirm the weekly or manual check detects `v0.1.2`.
+10. Click Download Update.
+11. Confirm progress is shown.
+12. Click Restart and Install.
+13. Confirm the app reports `v0.1.2`.
+14. Confirm the existing library, database, metadata, and files remain intact.

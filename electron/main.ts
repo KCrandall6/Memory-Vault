@@ -16,6 +16,7 @@ import dbOperations from './database.cjs';
 
 // Import file handler as ES module
 import { processMediaFile } from './file-handler.js';
+import { setupUpdater, scheduleAutomaticUpdateCheck } from './updater.js';
 
 const {
   LIBRARY_FOLDER_NAME,
@@ -1035,6 +1036,7 @@ function createWindow() {
 
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString());
+    scheduleAutomaticUpdateCheck();
   });
 
   if (VITE_DEV_SERVER_URL) {
@@ -1071,6 +1073,7 @@ app.whenReady().then(async () => {
     getLibraryStatus();
 
     setupIpcHandlers();
+    setupUpdater({ getMainWindow: () => win });
     createWindow();
     
     debugLog('App initialized successfully');

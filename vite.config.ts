@@ -24,7 +24,8 @@ export default defineConfig({
               external: [
                 'electron', 
                 'better-sqlite3', 
-                'sharp'
+                'sharp',
+                'electron-updater'
               ],
             },
           },
