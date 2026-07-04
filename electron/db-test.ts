@@ -1,14 +1,18 @@
-// @ts-nocheck
 // electron/db-test.ts
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import storageRoot from './storage-root.cjs';
 
+type StorageRoot = {
+  ensureArchiveDirectory: () => void;
+  getDatabasePath: () => string;
+};
+
 const {
   ensureArchiveDirectory,
   getDatabasePath
-} = storageRoot;
+} = storageRoot as StorageRoot;
 
 // ES module compatible dirname (replaces __dirname)
 const currentFilePath = import.meta.url;
@@ -35,7 +39,7 @@ export async function testDatabase() {
     try {
       const stats = await fs.stat(dbPath);
       console.log('Database file exists, size:', stats.size);
-    } catch (err) {
+    } catch {
       console.log('Database file does not exist, will create it');
       
       // Ensure directory exists
@@ -113,7 +117,7 @@ async function findExistingPath(paths: string[]): Promise<string | null> {
       if (stats.isFile()) {
         return candidate;
       }
-    } catch (err) {
+    } catch {
       // Ignore missing files
     }
   }

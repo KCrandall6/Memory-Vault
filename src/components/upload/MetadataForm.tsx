@@ -1,7 +1,8 @@
 // src/components/upload/MetadataForm.tsx
 import "./MetadataForm.css";
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Form, Button, Row, Col, Badge, InputGroup, Modal } from 'react-bootstrap';
+import { SelectedUploadFile } from '../../types/upload';
 
 interface MediaType {
   id: number | string;
@@ -37,7 +38,7 @@ export interface MetadataDraft {
 }
 
 export interface MetadataSubmitPayload extends MetadataDraft {
-  file: File;
+  file: SelectedUploadFile;
 }
 
 export interface CarryOverOptions {
@@ -50,7 +51,7 @@ export interface CarryOverOptions {
 }
 
 interface MetadataFormProps {
-  file: File | null;
+  file: SelectedUploadFile | null;
   onSave: (metadata: MetadataSubmitPayload) => void;
   mediaTypes: MediaType[];
   collections: Collection[];
@@ -113,11 +114,11 @@ const MetadataForm = ({
   const [newCollectionDescription, setNewCollectionDescription] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
 
-  const emitDraftChange = (
-    nextFormData = formData,
-    nextSelectedTags = selectedTags,
-    nextSelectedPeople = selectedPeople,
-    nextSelectedCollection = selectedCollection
+  const emitDraftChange = useCallback((
+    nextFormData: typeof formData,
+    nextSelectedTags: Tag[],
+    nextSelectedPeople: Person[],
+    nextSelectedCollection: Collection | null
   ): void => {
     if (!onDraftChange) return;
 
@@ -132,9 +133,9 @@ const MetadataForm = ({
       people: nextSelectedPeople,
       collection: nextSelectedCollection
     });
-  };
+  }, [onDraftChange]);
 
-  const findMediaTypeIdByName = (name: string) => {
+  const findMediaTypeIdByName = useCallback((name: string) => {
     const match = mediaTypes.find((type) => {
       if (!type || typeof type !== 'object') return false;
       return (
@@ -143,9 +144,9 @@ const MetadataForm = ({
     });
     if (!match) return '';
     return typeof match.id === 'number' ? match.id.toString() : `${match.id}`;
-  };
+  }, [mediaTypes]);
 
-  const determineMediaType = (currentFile: File | null) => {
+  const determineMediaType = useCallback((currentFile: SelectedUploadFile | null) => {
     if (!currentFile) return '';
     const mimeType = currentFile.type || '';
 
@@ -177,7 +178,7 @@ const MetadataForm = ({
     }
 
     return '';
-  };
+  }, [findMediaTypeIdByName, mediaTypes]);
 
   // Reset form when file changes
   useEffect(() => {
@@ -209,7 +210,7 @@ const MetadataForm = ({
     if (!draft) {
       emitDraftChange(nextFormState, [], [], null);
     }
-  }, [file, draft]);
+  }, [determineMediaType, draft, emitDraftChange, file]);
 
   // Filter collections based on search term
   useEffect(() => {
@@ -245,10 +246,10 @@ const MetadataForm = ({
           ...prev,
           mediaTypeId: inferred
         };
-        emitDraftChange(next);
+        emitDraftChange(next, selectedTags, selectedPeople, selectedCollection);
         return next;
     });
-  }, [mediaTypes, file]);
+  }, [determineMediaType, emitDraftChange, file, mediaTypes, selectedCollection, selectedPeople, selectedTags]);
 
   // Handle form field changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -257,7 +258,7 @@ const MetadataForm = ({
     setFormData(nextFormData);
 
     if (name !== 'collectionSearchTerm' && name !== 'newTag' && name !== 'newPerson') {
-      emitDraftChange(nextFormData);
+      emitDraftChange(nextFormData, selectedTags, selectedPeople, selectedCollection);
     }
   };
 
@@ -305,7 +306,7 @@ const MetadataForm = ({
       if (existingTag) {
         const nextTags = [...selectedTags, existingTag];
         setSelectedTags(nextTags);
-        emitDraftChange(formData, nextTags);
+        emitDraftChange(formData, nextTags, selectedPeople, selectedCollection);
       } else {
         // Create a new tag with a temporary negative ID (will be replaced with a real ID in the backend)
         const newTag = {
@@ -314,7 +315,7 @@ const MetadataForm = ({
         };
         const nextTags = [...selectedTags, newTag];
         setSelectedTags(nextTags);
-        emitDraftChange(formData, nextTags);
+        emitDraftChange(formData, nextTags, selectedPeople, selectedCollection);
       }
     }
 
@@ -325,7 +326,7 @@ const MetadataForm = ({
   const handleRemoveTag = (tagId: number) => {
     const nextTags = selectedTags.filter(tag => tag.id !== tagId);
     setSelectedTags(nextTags);
-    emitDraftChange(formData, nextTags);
+    emitDraftChange(formData, nextTags, selectedPeople, selectedCollection);
   };
 
   // Add a person
@@ -346,7 +347,7 @@ const MetadataForm = ({
       if (existingPerson) {
         const nextPeople = [...selectedPeople, existingPerson];
         setSelectedPeople(nextPeople);
-        emitDraftChange(formData, selectedTags, nextPeople);
+        emitDraftChange(formData, selectedTags, nextPeople, selectedCollection);
       } else {
         // Create a new person with a temporary negative ID
         const newPerson = {
@@ -355,7 +356,7 @@ const MetadataForm = ({
         };
         const nextPeople = [...selectedPeople, newPerson];
         setSelectedPeople(nextPeople);
-        emitDraftChange(formData, selectedTags, nextPeople);
+        emitDraftChange(formData, selectedTags, nextPeople, selectedCollection);
       }
     }
 
@@ -366,7 +367,7 @@ const MetadataForm = ({
   const handleRemovePerson = (personId: number) => {
     const nextPeople = selectedPeople.filter(person => person.id !== personId);
     setSelectedPeople(nextPeople);
-    emitDraftChange(formData, selectedTags, nextPeople);
+    emitDraftChange(formData, selectedTags, nextPeople, selectedCollection);
   };
 
   const handleCarryOverToggle = (field: keyof CarryOverOptions) => {

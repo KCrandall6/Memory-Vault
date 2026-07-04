@@ -9,7 +9,7 @@ const Navbar = () => {
         <Container fluid className="app-content-container">
           <BootstrapNavbar.Brand as={Link} to="/">
             <img
-              src="/memory-vault-logo.png"
+              src="./memory-vault-logo.png"
               width="30"
               height="30"
               className="d-inline-block align-top me-2"

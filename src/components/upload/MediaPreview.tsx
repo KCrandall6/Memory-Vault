@@ -1,9 +1,10 @@
 // src/components/upload/MediaPreview.tsx - with expand and zoom
 import { useState, useEffect, useRef } from 'react';
 import { Card, Spinner, Modal, Button } from 'react-bootstrap';
+import { SelectedUploadFile } from '../../types/upload';
 
 interface MediaPreviewProps {
-  file: File | any;
+  file: SelectedUploadFile | null;
 }
 
 const MediaPreview = ({ file }: MediaPreviewProps) => {
@@ -18,39 +19,31 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
   const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    // Clean up previous URL if it exists
-    if (previewUrl && previewUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl('');
-    }
+    let objectUrl: string | undefined;
+    let cancelled = false;
 
-    // Reset zoom and fullscreen when file changes
+    setPreviewUrl('');
+    setFileType('');
     setZoomLevel(1);
     setShowFullscreen(false);
 
     if (!file) {
-      return;
+      return undefined;
     }
-    
-    
+
     setIsLoading(true);
     setError(null);
 
-    // Browser File object
     if (file instanceof Blob) {
       setFileType(file.type || '');
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
       setIsLoading(false);
-    }
-    // Electron file object
-    else if (file.path) {
-      // Get preview using IPC
+    } else if (file.path) {
       if (window.electronAPI?.getFilePreview) {
-        
         window.electronAPI.getFilePreview(file.path)
           .then(result => {
-            
+            if (cancelled) return;
             if (result) {
               setPreviewUrl(result.dataUrl);
               setFileType(result.mimeType);
@@ -59,7 +52,8 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
             }
             setIsLoading(false);
           })
-          .catch(err => {
+          .catch((err: Error) => {
+            if (cancelled) return;
             console.error('Error getting file preview:', err);
             setError(`Error loading preview: ${err.message || 'Unknown error'}`);
             setIsLoading(false);
@@ -72,8 +66,9 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
     }
 
     return () => {
-      if (previewUrl && previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(previewUrl);
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
       }
     };
   }, [file]);
@@ -103,8 +98,9 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
   }
 
   const getFileName = () => {
-    if (file.name) return file.name;
-    if (file.path) {
+    if (!file) return 'Unknown file';
+    if ('name' in file && file.name) return file.name;
+    if ('path' in file && file.path) {
       const parts = file.path.split(/[/\\]/);
       return parts[parts.length - 1];
     }
@@ -213,9 +209,9 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
               <details className="mt-3">
                 <summary className="text-secondary">Debug Info</summary>
                 <div className="mt-2 text-start">
-                  <p className="small">File path: {file.path || 'N/A'}</p>
+                  <p className="small">File path: {'path' in file ? file.path : 'N/A'}</p>
                   <p className="small">File type: {file.type || 'N/A'}</p>
-                  <p className="small">File size: {file.size ? `${Math.round(file.size / 1024)} KB` : 'N/A'}</p>
+                  <p className="small">File size: {'size' in file && file.size ? `${Math.round(file.size / 1024)} KB` : 'N/A'}</p>
                 </div>
               </details>
             </div>
@@ -274,9 +270,9 @@ const MediaPreview = ({ file }: MediaPreviewProps) => {
               <details className="mt-3">
                 <summary className="text-secondary">Debug Info</summary>
                 <div className="mt-2 text-start">
-                  <p className="small">File path: {file.path || 'N/A'}</p>
+                  <p className="small">File path: {'path' in file ? file.path : 'N/A'}</p>
                   <p className="small">File type: {file.type || 'N/A'}</p>
-                  <p className="small">File size: {file.size ? `${Math.round(file.size / 1024)} KB` : 'N/A'}</p>
+                  <p className="small">File size: {'size' in file && file.size ? `${Math.round(file.size / 1024)} KB` : 'N/A'}</p>
                 </div>
               </details>
             </div>

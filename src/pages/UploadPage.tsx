@@ -9,6 +9,7 @@ import MetadataForm, {
   MetadataDraft,
   MetadataSubmitPayload
 } from '../components/upload/MetadataForm';
+import { SelectedUploadFile } from '../types/upload';
 
 // Define interfaces for your data structures
 interface MediaType {
@@ -42,8 +43,8 @@ const defaultCarryOverOptions: CarryOverOptions = {
 };
 
 const UploadPage = () => {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedUploadFile[]>([]);
+  const [currentFile, setCurrentFile] = useState<SelectedUploadFile | null>(null);
   const [mediaTypes, setMediaTypes] = useState<MediaType[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [existingTags, setExistingTags] = useState<Tag[]>([]);
@@ -56,12 +57,12 @@ const UploadPage = () => {
     { variant: 'success' | 'danger'; text: string } | null
   >(null);
 
-  const getFileKey = (file: File) => {
-    const maybePath = (file as File & { path?: string }).path;
+  const getFileKey = (file: SelectedUploadFile) => {
+    const maybePath = 'path' in file ? file.path : undefined;
     if (typeof maybePath === 'string' && maybePath.length > 0) {
       return maybePath;
     }
-    return `${file.name}-${file.lastModified}-${file.size}`;
+    return `${file.name}-${'lastModified' in file ? file.lastModified : 'unknown'}-${'size' in file ? file.size : 'unknown'}`;
   };
 
   // Fetch reference data from database
@@ -149,7 +150,7 @@ const UploadPage = () => {
   }, []);
 
   // Handle file selection
-  const handleFilesSelected = (files: File[]) => {
+  const handleFilesSelected = (files: SelectedUploadFile[]) => {
     if (!files || files.length === 0) return;
 
     if (selectedFiles.length === 0) {
@@ -167,15 +168,15 @@ const UploadPage = () => {
   };
   
   // Handle selecting a file from the queue
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = (file: SelectedUploadFile) => {
     setCurrentFile(file);
   };
   
   // Handle saving metadata
   const handleSaveMetadata = async (metadata: MetadataSubmitPayload) => {
     try {
-      const fileWithPath = metadata.file as File & { path?: string };
-      if (!fileWithPath.path) {
+      const fileWithPath = metadata.file;
+      if (!('path' in fileWithPath) || !fileWithPath.path) {
         throw new Error('File path missing from selected file');
       }
       // Prepare data for saving
@@ -273,7 +274,7 @@ const UploadPage = () => {
     }
   };
 
-  const handleDraftChange = (file: File, draft: MetadataDraft) => {
+  const handleDraftChange = (file: SelectedUploadFile, draft: MetadataDraft) => {
     const key = getFileKey(file);
     setMetadataDrafts(prev => ({
       ...prev,

@@ -1,0 +1,65 @@
+name: Windows CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-ci:
+    name: Windows installer verification
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Print Node and npm versions
+        shell: pwsh
+        run: |
+          node --version
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build Windows installer
+        run: npm run build:installer
+
+      - name: Verify sandboxed preload output
+        run: npm run verify:preload
+
+      - name: Verify installer was created
+        shell: pwsh
+        run: |
+          $installerPath = Join-Path $env:GITHUB_WORKSPACE 'release/Memory Vault Setup.exe'
+          if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
+            Write-Error "Expected Windows installer was not found at: $installerPath"
+            exit 1
+          }
+          Write-Host "Verified Windows installer: $installerPath"
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-vault-windows-installer
+          path: release/Memory Vault Setup.exe
+          if-no-files-found: error
+          retention-days: 7
