@@ -35,3 +35,40 @@
     padding-left: 1rem !important;
   }
 }
+
+.app-update-notice {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  width: min(100%, 1440px);
+  padding: 0.85rem clamp(1rem, 3vw, 2.5rem);
+  border-bottom: 1px solid #dbe8f5;
+  background: #fff8e1;
+  color: #1e3a5f;
+}
+
+.app-update-notice strong,
+.app-update-notice span {
+  display: block;
+}
+
+.app-update-notice span {
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.app-update-notice__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 575.98px) {
+  .app-update-notice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
