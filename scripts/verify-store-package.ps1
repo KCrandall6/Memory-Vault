@@ -29,7 +29,13 @@ try {
     Write-Host 'Extracted package root entries:'
     Get-ChildItem -LiteralPath $destination -Force | ForEach-Object { Write-Host ("  {0}" -f $_.FullName) }
     Write-Host 'Extracted executable files:'
-    Get-ChildItem -LiteralPath $destination -Filter '*.exe' -Recurse -File | ForEach-Object { Write-Host ("  {0}" -f $_.FullName) }
+    $executables = @(Get-ChildItem -LiteralPath $destination -Filter '*.exe' -Recurse -File)
+    $executables | ForEach-Object { Write-Host ("  {0}" -f $_.FullName) }
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        $details = "Manifest=$($manifest.Package.Applications.Application.Executable); resolved=$exe; packaged EXEs=$($executables.FullName -join '; ')"
+        $details = $details.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+        Write-Host "::notice title=AppX executable paths::$details"
+    }
     if (-not (Test-Path -LiteralPath $exe)) { throw 'Packaged application executable is missing.' }
     foreach ($asset in @('StoreLogo.png', 'Square44x44Logo.png', 'Square150x150Logo.png', 'Wide310x150Logo.png')) {
         if (-not (Test-Path -LiteralPath (Join-Path $destination ("assets/" + $asset)))) {

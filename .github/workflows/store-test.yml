@@ -34,6 +34,7 @@ jobs:
       - run: npm run lint
       - run: npm run verify:store
       - run: npm run build:store:test
+        id: store-build
       - name: Inspect generated package (does not install or certify)
         shell: pwsh
         run: |
@@ -41,6 +42,7 @@ jobs:
           if ($packages.Count -ne 1) { throw "Expected one AppX; found $($packages.Count)." }
           ./scripts/verify-store-package.ps1 -PackagePath $packages[0].FullName
       - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.store-build.outcome == 'success' }}
         with:
           name: memory-vault-store-test-x64-unsigned
           path: |
