@@ -84,7 +84,7 @@ function formatDateTime(value?: string) {
 function updateStatusLabel(state: UpdateState | null) {
   if (!state) return 'Loading update status…';
   const labels: Record<UpdateState['status'], string> = {
-    unsupported: 'Installed Windows build required',
+    unsupported: 'App-managed updates unavailable',
     idle: 'Ready to check',
     checking: 'Checking for updates…',
     'up-to-date': 'Memory Vault is up to date.',
@@ -114,7 +114,9 @@ function ApplicationUpdatesCard() {
           <div>
             <p className="vault-settings-eyebrow">Application Updates</p>
             <h2>Application Updates</h2>
-            <p className="vault-settings-muted">Memory Vault checks approximately once per week. Updates are never downloaded or installed without your permission.</p>
+            <p className="vault-settings-muted">{state?.status === 'unsupported'
+              ? state.error
+              : 'Memory Vault checks approximately once per week. Updates are never downloaded or installed without your permission.'}</p>
           </div>
           <i className="bi bi-cloud-arrow-down" />
         </div>
@@ -138,7 +140,7 @@ function ApplicationUpdatesCard() {
         )}
 
         <div className="vault-settings-actions">
-          <Button variant="outline-primary" disabled={loading || isChecking || isDownloading} onClick={checkForUpdates}>
+          <Button variant="outline-primary" disabled={loading || !state?.supported || isChecking || isDownloading} onClick={checkForUpdates}>
             {isChecking ? <><Spinner size="sm" className="me-2" />Checking…</> : state?.status === 'up-to-date' || state?.status === 'error' ? 'Check Again' : 'Check for updates'}
           </Button>
           {state?.status === 'available' && <Button disabled={isDownloading} onClick={downloadUpdate}>Download Update</Button>}

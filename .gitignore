@@ -146,6 +146,7 @@ dist-ssr
 *.sw?
 
 release/
+/build/store-test/
 dist/
 dist-electron/
 *.map
