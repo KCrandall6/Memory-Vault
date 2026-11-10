@@ -1,12 +1,29 @@
 param(
-    [Parameter(Mandatory = $true)][string]$PackagePath
+    [Parameter(Mandatory = $true)][string]$PackagePath,
+    [string]$MakeAppxPath
 )
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName System.IO.Compression.FileSystem
 $package = (Resolve-Path -LiteralPath $PackagePath).Path
 $destination = Join-Path ([IO.Path]::GetTempPath()) ("memory-vault-appx-" + [guid]::NewGuid())
+if (-not $MakeAppxPath) {
+    $command = Get-Command makeappx.exe -ErrorAction SilentlyContinue
+    if ($command) {
+        $MakeAppxPath = $command.Source
+    } else {
+        $sdkTools = @(Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" -File -ErrorAction SilentlyContinue)
+        $MakeAppxPath = ($sdkTools | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).FullName
+    }
+}
+if (-not $MakeAppxPath -or -not (Test-Path -LiteralPath $MakeAppxPath -PathType Leaf)) {
+    throw 'Windows SDK MakeAppx.exe is required to inspect AppX packages. Install the SDK or pass -MakeAppxPath.'
+}
 try {
-    [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
+    # AppX uses URI-encoded package part names (e.g. Memory%20Vault.exe).
+    # Raw ZIP extraction leaves those escapes in filenames and does not model
+    # deployment. MakeAppx unpack restores the logical paths used by the manifest.
+    Write-Host ("AppX unpacker: {0}" -f $MakeAppxPath)
+    & $MakeAppxPath unpack /p $package /d $destination
+    if ($LASTEXITCODE -ne 0) { throw "MakeAppx unpack failed with exit code $LASTEXITCODE." }
     [xml]$manifest = Get-Content -LiteralPath (Join-Path $destination 'AppxManifest.xml') -Raw
     if ($manifest.Package.Identity.Name -ne 'MemoryVault.StoreTest' -or
         $manifest.Package.Identity.Publisher -ne 'CN=MemoryVault Store Test' -or
@@ -36,7 +53,7 @@ try {
         $details = $details.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
         Write-Host "::notice title=AppX executable paths::$details"
     }
-    if (-not (Test-Path -LiteralPath $exe)) { throw 'Packaged application executable is missing.' }
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Packaged application executable is missing.' }
     foreach ($asset in @('StoreLogo.png', 'Square44x44Logo.png', 'Square150x150Logo.png', 'Wide310x150Logo.png')) {
         if (-not (Test-Path -LiteralPath (Join-Path $destination ("assets/" + $asset)))) {
             throw "Missing asset: $asset"

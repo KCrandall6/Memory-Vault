@@ -146,6 +146,16 @@ GitHub update configuration, and unpacked x64 native bindings. It cleans only
 that temporary directory. Passing this check is **package structure validation**,
 not a successful installation or a native-module runtime test.
 
+The verifier uses the Windows SDK MakeAppx.exe unpacker (discovered from PATH or
+the newest installed x64 SDK; override with -MakeAppxPath if necessary).
+Do not substitute System.IO.Compression.ZipFile extraction: AppX package part
+names are URI encoded. In the first Windows CI build, the manifest declared
+app\Memory Vault.exe, while raw ZIP extraction produced
+app\Memory%20Vault.exe. That caused a false executable-missing result. MakeAppx
+unpack restores the logical deployment filenames; the verifier still requires
+the manifest's exact executable path to exist as a file. This was a verification
+extraction issue, not evidence of a missing application executable.
+
 ## Local certificate, signing and installation
 
 These are manual development operations, not CI or production signing. Use a
