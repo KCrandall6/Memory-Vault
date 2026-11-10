@@ -42,4 +42,8 @@ On macOS a `.dmg` is produced, and on Linux an `.AppImage` is produced under the
 
 ## File/storage layout
 
+For the separate experimental Microsoft Store AppX build, Windows signing and
+installation steps, feasibility findings, and acceptance checklist, see
+[Store feasibility](docs/STORE-FEASIBILITY.md). It does not replace the NSIS release.
+
 In packaged builds, the archive folder (`Memory Vault Archive`) and SQLite database (`memoryvault.db`) are created next to the executable by default. In development they are created under your user data directory (e.g., `%AppData%/temp-project---template-react/MemoryVault`).

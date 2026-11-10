@@ -2,12 +2,28 @@
 /// <reference path="./storage-root.d.ts" />
 import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import type { UpdateInfo, ProgressInfo } from 'electron-updater';
 // @ts-expect-error - CommonJS helper declaration is not resolved by bundler mode
 import storageRoot from './storage-root.cjs';
 
 const require = createRequire(import.meta.url);
-const { autoUpdater } = require('electron-updater') as typeof import('electron-updater');
+let updater: typeof import('electron-updater').autoUpdater | undefined;
+
+function isStoreBuild() {
+  if (process.windowsStore) return true;
+  // AppX uses regular Electron, so do not rely on windowsStore alone.
+  return require(path.join(app.getAppPath(), 'package.json')).memoryVaultDistribution === 'store';
+}
+
+function getAutoUpdater() {
+  if (!isSupported()) throw new Error(unsupportedMessage());
+  if (!updater) {
+    const { autoUpdater } = require('electron-updater') as typeof import('electron-updater');
+    updater = autoUpdater;
+  }
+  return updater;
+}
 
 const { readSettings, writeSettings } = storageRoot;
 
@@ -58,7 +74,7 @@ function isPortableBuild() {
 }
 
 function isSupported() {
-  return app.isPackaged && process.platform === 'win32' && !isPortableBuild();
+  return app.isPackaged && process.platform === 'win32' && !isStoreBuild() && !isPortableBuild();
 }
 
 function readUpdateSettings(): UpdateSettings {
@@ -79,13 +95,14 @@ function makeInitialState(): UpdateState {
     status: supported ? 'idle' : 'unsupported',
     supported,
     currentVersion: app.getVersion(),
-    lastCheckedAt: settings.lastUpdateCheckAt,
-    nextAutomaticCheckAt: nextCheck(settings.lastUpdateCheckAt),
+    lastCheckedAt: supported ? settings.lastUpdateCheckAt : undefined,
+    nextAutomaticCheckAt: supported ? nextCheck(settings.lastUpdateCheckAt) : undefined,
     error: supported ? undefined : unsupportedMessage()
   };
 }
 
 function unsupportedMessage() {
+  if (isStoreBuild()) return 'This package uses Microsoft Store updates. Local test packages must be updated by installing a newer test package. GitHub updates are disabled.';
   if (!app.isPackaged) return 'Real update checks are available only in an installed Windows build.';
   if (process.platform !== 'win32') return 'Automatic updates are available only for installed Windows builds.';
   if (isPortableBuild()) return 'Portable builds should be updated manually by downloading the latest portable package.';
@@ -121,6 +138,7 @@ function persistCheckStarted() {
 }
 
 function configureAutoUpdater() {
+  const autoUpdater = getAutoUpdater();
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.allowPrerelease = false;
@@ -129,6 +147,7 @@ function configureAutoUpdater() {
 
 function registerListeners() {
   if (listenersRegistered || !isSupported()) return;
+  const autoUpdater = getAutoUpdater();
   listenersRegistered = true;
   autoUpdater.on('checking-for-update', () => setState({ status: 'checking', error: undefined, progress: undefined }));
   autoUpdater.on('update-available', (info) => setState({ status: 'available', ...serializeInfo(info), error: undefined, progress: undefined }));
@@ -175,7 +194,7 @@ async function checkForUpdates(manual: boolean) {
   if (checkInFlight) return checkInFlight;
   if (!manual && state.lastCheckedAt && Date.now() < Date.parse(state.lastCheckedAt) + WEEK_MS) return state;
   persistCheckStarted();
-  checkInFlight = autoUpdater.checkForUpdates()
+  checkInFlight = getAutoUpdater().checkForUpdates()
     .then(() => state)
     .catch((error) => setState({ status: 'error', error: sanitizeError(error), progress: undefined }))
     .finally(() => { checkInFlight = null; });
@@ -187,7 +206,7 @@ async function downloadUpdate() {
   if (unsupported) return unsupported;
   if (downloadInFlight) return downloadInFlight;
   if (state.status !== 'available') return setState({ error: 'No downloaded update is available to install yet.' });
-  downloadInFlight = autoUpdater.downloadUpdate()
+  downloadInFlight = getAutoUpdater().downloadUpdate()
     .then(() => state)
     .catch((error) => setState({ status: 'error', error: sanitizeError(error), progress: undefined }))
     .finally(() => { downloadInFlight = null; });
@@ -199,7 +218,7 @@ function quitAndInstall() {
   const unsupported = assertSupported();
   if (unsupported) return { success: false, error: unsupported.error };
   if (!downloaded || state.status !== 'downloaded') return { success: false, error: 'The update has not finished downloading yet.' };
-  autoUpdater.quitAndInstall(false, true);
+  getAutoUpdater().quitAndInstall(false, true);
   return { success: true };
 }
 
@@ -211,7 +230,7 @@ export function getUpdateState() {
 export function setupUpdater(options: { getMainWindow: () => BrowserWindow | null }) {
   mainWindow = options.getMainWindow();
   state = makeInitialState();
-  configureAutoUpdater();
+  if (isSupported()) configureAutoUpdater();
   registerListeners();
 
   if (!handlersRegistered) {

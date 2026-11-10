@@ -1,0 +1,70 @@
+param(
+    [Parameter(Mandatory = $true)][string]$PackagePath,
+    [string]$MakeAppxPath
+)
+$ErrorActionPreference = 'Stop'
+$package = (Resolve-Path -LiteralPath $PackagePath).Path
+$destination = Join-Path ([IO.Path]::GetTempPath()) ("memory-vault-appx-" + [guid]::NewGuid())
+if (-not $MakeAppxPath) {
+    $command = Get-Command makeappx.exe -ErrorAction SilentlyContinue
+    if ($command) {
+        $MakeAppxPath = $command.Source
+    } else {
+        $sdkTools = @(Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" -File -ErrorAction SilentlyContinue)
+        $MakeAppxPath = ($sdkTools | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).FullName
+    }
+}
+if (-not $MakeAppxPath -or -not (Test-Path -LiteralPath $MakeAppxPath -PathType Leaf)) {
+    throw 'Windows SDK MakeAppx.exe is required to inspect AppX packages. Install the SDK or pass -MakeAppxPath.'
+}
+try {
+    # AppX uses URI-encoded package part names (e.g. Memory%20Vault.exe).
+    # Raw ZIP extraction leaves those escapes in filenames and does not model
+    # deployment. MakeAppx unpack restores the logical paths used by the manifest.
+    Write-Host ("AppX unpacker: {0}" -f $MakeAppxPath)
+    & $MakeAppxPath unpack /p $package /d $destination
+    if ($LASTEXITCODE -ne 0) { throw "MakeAppx unpack failed with exit code $LASTEXITCODE." }
+    [xml]$manifest = Get-Content -LiteralPath (Join-Path $destination 'AppxManifest.xml') -Raw
+    if ($manifest.Package.Identity.Name -ne 'MemoryVault.StoreTest' -or
+        $manifest.Package.Identity.Publisher -ne 'CN=MemoryVault Store Test' -or
+        $manifest.Package.Identity.ProcessorArchitecture -ne 'x64') {
+        throw 'Unexpected experimental package identity or architecture.'
+    }
+    if ($manifest.Package.Dependencies.TargetDeviceFamily.MinVersion -ne '10.0.19041.0') {
+        throw 'Unexpected minimum Windows version.'
+    }
+    $capabilities = @($manifest.Package.Capabilities.ChildNodes | Where-Object { $_.NodeType -eq 'Element' })
+    if ($capabilities.Count -ne 1 -or $capabilities[0].Name -ne 'runFullTrust') {
+        throw 'Unexpected package capabilities.'
+    }
+    if ($manifest.Package.Applications.Application.EntryPoint -ne 'Windows.FullTrustApplication') {
+        throw 'The experiment must remain a full-trust desktop app.'
+    }
+    $exe = Join-Path $destination $manifest.Package.Applications.Application.Executable
+    Write-Host ("Manifest Application.Executable: {0}" -f $manifest.Package.Applications.Application.Executable)
+    Write-Host ("Resolved executable path: {0}" -f $exe)
+    Write-Host 'Extracted package root entries:'
+    Get-ChildItem -LiteralPath $destination -Force | ForEach-Object { Write-Host ("  {0}" -f $_.FullName) }
+    Write-Host 'Extracted executable files:'
+    $executables = @(Get-ChildItem -LiteralPath $destination -Filter '*.exe' -Recurse -File)
+    $executables | ForEach-Object { Write-Host ("  {0}" -f $_.FullName) }
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        $details = "Manifest=$($manifest.Package.Applications.Application.Executable); resolved=$exe; packaged EXEs=$($executables.FullName -join '; ')"
+        $details = $details.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+        Write-Host "::notice title=AppX executable paths::$details"
+    }
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Packaged application executable is missing.' }
+    foreach ($asset in @('StoreLogo.png', 'Square44x44Logo.png', 'Square150x150Logo.png', 'Wide310x150Logo.png')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $destination ("assets/" + $asset)))) {
+            throw "Missing asset: $asset"
+        }
+    }
+    $env:MEMORY_VAULT_PACKAGE_RESOURCES = Join-Path $destination 'app/resources'
+    node scripts/verify-store-payload.cjs
+    if ($LASTEXITCODE -ne 0) { throw 'Store payload verification failed.' }
+    Write-Host "AppX structure verified: $package"
+    Write-Host 'This does not verify signing, Windows installation, application behavior, or Store certification.'
+} finally {
+    Remove-Item Env:MEMORY_VAULT_PACKAGE_RESOURCES -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $destination) { Remove-Item -LiteralPath $destination -Recurse -Force }
+}

@@ -1,0 +1,52 @@
+name: Experimental Store package
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'electron/**'
+      - 'src/**'
+      - 'public/**'
+      - 'resources/**'
+      - 'build/icon.ico'
+      - 'package*.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - 'electron-builder.store-test.cjs'
+      - 'scripts/*store*'
+      - '.github/workflows/store-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  appx:
+    name: Build unsigned experimental AppX (x64)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run verify:store
+      - run: npm run build:store:test
+        id: store-build
+      - name: Inspect generated package (does not install or certify)
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -LiteralPath release/store-test -Filter '*.appx' -File)
+          if ($packages.Count -ne 1) { throw "Expected one AppX; found $($packages.Count)." }
+          ./scripts/verify-store-package.ps1 -PackagePath $packages[0].FullName
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.store-build.outcome == 'success' }}
+        with:
+          name: memory-vault-store-test-x64-unsigned
+          path: |
+            release/store-test/*.appx
+            release/store-test/AppxManifest.xml
+          if-no-files-found: error
+          retention-days: 7
